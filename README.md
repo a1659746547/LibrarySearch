@@ -41,7 +41,13 @@
 
 在线元件按需获取自嘉立创EDA / EasyEDA。仓库不包含供应商元件数据库、用户工程、私有缓存或 Altium SDK。软件开源许可不代表第三方元件数据的再分发授权。
 
-转换器基于 easyeda2altium 和 altiumrs，保留其原始版权声明及许可证。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。LibrarySearch 不是 Altium 或嘉立创EDA的官方插件。
+### 参考项目与致谢
+
+- [korbin/easyeda2altium](https://github.com/korbin/easyeda2altium)：在线元件获取、EasyEDA 数据解析及 Altium 符号/封装转换的基础。
+- [korbin/altiumrs](https://github.com/korbin/altiumrs)：Altium 文件读写基础，用于转换和本地元件库扫描；保留 [issus/altiumrs](https://github.com/issus/altiumrs) 的上游元数据说明。
+- [uPesy/easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py)：解析器注明的 EasyEDA shape / pin 数据格式参考。
+
+感谢上述项目的贡献。具体使用范围、基线 revision 和参考关系见 [SOURCE_ORIGINS.md](SOURCE_ORIGINS.md)，许可证告知见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。LibrarySearch 不是 Altium 或嘉立创EDA的官方插件。
 
 ## 开源许可
 
