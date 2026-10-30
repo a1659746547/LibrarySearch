@@ -1,0 +1,41 @@
+{
+  "PluginVersion": "1.1.0-beta.2",
+  "Architecture": "x64",
+  "ManagedRuntime": "net6windows",
+  "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2-net6.dll",
+  "CoreSHA256": "69711EC9AF60273E65BF6AACC5210C56A7B9B4279C642117C9CC1EF751EAE780",
+  "CoreSources": [
+    {
+      "Path": "src\\LibraryStore.cs",
+      "SHA256": "E281C05C9726F4C3BDBA2A45B6679D3BD646C771B2657F1F8D8F605654694B43"
+    },
+    {
+      "Path": "src\\LibraryPanel.cs",
+      "SHA256": "F4F179F084EB2B72D3E84E17CED6405091368323A542CF3FF9EF3943C79D6844"
+    },
+    {
+      "Path": "src\\Diagnostics.cs",
+      "SHA256": "58496037074488A6540C67D960AE04F6EC867DF034C778229DA999516B89E3AF"
+    },
+    {
+      "Path": "src\\ModelSearch.cs",
+      "SHA256": "36924EE0A3407B7CEECDB37965F6F1163FBAA842075C2753A058920E63419167"
+    },
+    {
+      "Path": "src\\InlineSearch.cs",
+      "SHA256": "96287D1FE2AE73BAA74297339314A505225A9BA1B5FDC8AAC3202A73CA856ADA"
+    },
+    {
+      "Path": "src\\SettingsPage.cs",
+      "SHA256": "17E4F6B68A7E3135A143A7F5FCC536BA5F366DB6AA044DCB267172987114AA45"
+    },
+    {
+      "Path": "src\\PanelPages.cs",
+      "SHA256": "D4E867FA8560AC6807E120E48511908B9B445E1C71AF2FD06340BCF3295C0783"
+    },
+    {
+      "Path": "src\\Updates.cs",
+      "SHA256": "83C1C1E0D8B2DB04B63CCEF22F93C405594E96718808FA8204085EE3A138F27C"
+    }
+  ]
+}

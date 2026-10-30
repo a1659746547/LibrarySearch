@@ -1,0 +1,268 @@
+{
+  "SchemaVersion": 1,
+  "PluginVersion": "1.1.0-beta.2",
+  "Architecture": "x64",
+  "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll",
+  "CoreSHA256": "9C61725523330583D4C316646945883DDF288A62F2D673EC09A8BC6E38CF8536",
+  "CoreSources": [
+    {
+      "Path": "src\\LibraryStore.cs",
+      "SHA256": "E281C05C9726F4C3BDBA2A45B6679D3BD646C771B2657F1F8D8F605654694B43"
+    },
+    {
+      "Path": "src\\LibraryPanel.cs",
+      "SHA256": "F4F179F084EB2B72D3E84E17CED6405091368323A542CF3FF9EF3943C79D6844"
+    },
+    {
+      "Path": "src\\Diagnostics.cs",
+      "SHA256": "58496037074488A6540C67D960AE04F6EC867DF034C778229DA999516B89E3AF"
+    },
+    {
+      "Path": "src\\ModelSearch.cs",
+      "SHA256": "36924EE0A3407B7CEECDB37965F6F1163FBAA842075C2753A058920E63419167"
+    },
+    {
+      "Path": "src\\InlineSearch.cs",
+      "SHA256": "96287D1FE2AE73BAA74297339314A505225A9BA1B5FDC8AAC3202A73CA856ADA"
+    },
+    {
+      "Path": "src\\SettingsPage.cs",
+      "SHA256": "17E4F6B68A7E3135A143A7F5FCC536BA5F366DB6AA044DCB267172987114AA45"
+    },
+    {
+      "Path": "src\\PanelPages.cs",
+      "SHA256": "D4E867FA8560AC6807E120E48511908B9B445E1C71AF2FD06340BCF3295C0783"
+    },
+    {
+      "Path": "src\\Updates.cs",
+      "SHA256": "83C1C1E0D8B2DB04B63CCEF22F93C405594E96718808FA8204085EE3A138F27C"
+    }
+  ],
+  "RuntimeCores": [
+    {
+      "PluginVersion": "1.1.0-beta.2",
+      "Architecture": "x64",
+      "ManagedRuntime": "net6windows",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2-net6.dll",
+      "CoreSHA256": "69711EC9AF60273E65BF6AACC5210C56A7B9B4279C642117C9CC1EF751EAE780",
+      "CoreSources": [
+        {
+          "Path": "src\\LibraryStore.cs",
+          "SHA256": "E281C05C9726F4C3BDBA2A45B6679D3BD646C771B2657F1F8D8F605654694B43"
+        },
+        {
+          "Path": "src\\LibraryPanel.cs",
+          "SHA256": "F4F179F084EB2B72D3E84E17CED6405091368323A542CF3FF9EF3943C79D6844"
+        },
+        {
+          "Path": "src\\Diagnostics.cs",
+          "SHA256": "58496037074488A6540C67D960AE04F6EC867DF034C778229DA999516B89E3AF"
+        },
+        {
+          "Path": "src\\ModelSearch.cs",
+          "SHA256": "36924EE0A3407B7CEECDB37965F6F1163FBAA842075C2753A058920E63419167"
+        },
+        {
+          "Path": "src\\InlineSearch.cs",
+          "SHA256": "96287D1FE2AE73BAA74297339314A505225A9BA1B5FDC8AAC3202A73CA856ADA"
+        },
+        {
+          "Path": "src\\SettingsPage.cs",
+          "SHA256": "17E4F6B68A7E3135A143A7F5FCC536BA5F366DB6AA044DCB267172987114AA45"
+        },
+        {
+          "Path": "src\\PanelPages.cs",
+          "SHA256": "D4E867FA8560AC6807E120E48511908B9B445E1C71AF2FD06340BCF3295C0783"
+        },
+        {
+          "Path": "src\\Updates.cs",
+          "SHA256": "83C1C1E0D8B2DB04B63CCEF22F93C405594E96718808FA8204085EE3A138F27C"
+        }
+      ]
+    },
+    {
+      "PluginVersion": "1.1.0-beta.2",
+      "Architecture": "x64",
+      "ManagedRuntime": "net8windows",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2-net8.dll",
+      "CoreSHA256": "4DC131F3485E397AA57EE0B5A3EAFF0F2E9D1F785B7EA1E89380670C37672E6F",
+      "CoreSources": [
+        {
+          "Path": "src\\LibraryStore.cs",
+          "SHA256": "E281C05C9726F4C3BDBA2A45B6679D3BD646C771B2657F1F8D8F605654694B43"
+        },
+        {
+          "Path": "src\\LibraryPanel.cs",
+          "SHA256": "F4F179F084EB2B72D3E84E17CED6405091368323A542CF3FF9EF3943C79D6844"
+        },
+        {
+          "Path": "src\\Diagnostics.cs",
+          "SHA256": "58496037074488A6540C67D960AE04F6EC867DF034C778229DA999516B89E3AF"
+        },
+        {
+          "Path": "src\\ModelSearch.cs",
+          "SHA256": "36924EE0A3407B7CEECDB37965F6F1163FBAA842075C2753A058920E63419167"
+        },
+        {
+          "Path": "src\\InlineSearch.cs",
+          "SHA256": "96287D1FE2AE73BAA74297339314A505225A9BA1B5FDC8AAC3202A73CA856ADA"
+        },
+        {
+          "Path": "src\\SettingsPage.cs",
+          "SHA256": "17E4F6B68A7E3135A143A7F5FCC536BA5F366DB6AA044DCB267172987114AA45"
+        },
+        {
+          "Path": "src\\PanelPages.cs",
+          "SHA256": "D4E867FA8560AC6807E120E48511908B9B445E1C71AF2FD06340BCF3295C0783"
+        },
+        {
+          "Path": "src\\Updates.cs",
+          "SHA256": "83C1C1E0D8B2DB04B63CCEF22F93C405594E96718808FA8204085EE3A138F27C"
+        }
+      ]
+    }
+  ],
+  "Targets": [
+    {
+      "AdMajor": 18,
+      "BuildAdVersion": "18.1.9.240",
+      "Dll": "hosts\\AD18\\LibrarySearch-1.1.0-beta.2-AD18.dll",
+      "DllSHA256": "FA977681402CAAF008AD2F567E727C9D3CAE1CC030D169F61153DEA104C93B51",
+      "Registration": "hosts\\AD18\\LibrarySearch.ins",
+      "RegistrationSHA256": "22204A1989F2F56A63429D8AC94E0F01C15E875B6E0EFB1B763CC257D30A9AE9",
+      "CoreSHA256": "9C61725523330583D4C316646945883DDF288A62F2D673EC09A8BC6E38CF8536",
+      "HostSource": "src\\Plugin.cs",
+      "HostSourceSHA256": "152BDA7DCBAFC8F50B8541752BB2E08F66C3F36602EDD5DB7FAC77F37C28748A",
+      "SdkClassesVersion": "1.0.0.0",
+      "SdkClassesSHA256": "44C446590304C31A2EF9BCB3E3BDDEB5AF9F1A6E2FEA581841E35575D7CC4DD8",
+      "SdkInterfacesVersion": "1.0.0.0",
+      "SdkInterfacesSHA256": "2D2EAA5A7D98BEA35554DE2BF951FA7D0A04022B5A2B9F0DC9267A78B4BFE362",
+      "Acceptance": "not-tested",
+      "ApplicationSHA256": "4F3E353CE81E7AD709988BADEBC7BD5A8FB2C597AF2828DA5D615799A790BE3A",
+      "VersionSource": "verified-build-reference-snapshot",
+      "ManagedRuntime": "netfx48",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll"
+    },
+    {
+      "AdMajor": 19,
+      "BuildAdVersion": "19.0.4.130",
+      "Dll": "hosts\\AD19\\LibrarySearch-1.1.0-beta.2-AD19.dll",
+      "DllSHA256": "CD6B2DF99AD93C528E764A0C6CE0F8C79EEE64D13D85B6EE7E89B9AA9BD9E631",
+      "Registration": "hosts\\AD19\\LibrarySearch.ins",
+      "RegistrationSHA256": "1018CF5128E8E29EABC061684987629527BCB71FE15FC54F743FF70D318F8FF2",
+      "CoreSHA256": "9C61725523330583D4C316646945883DDF288A62F2D673EC09A8BC6E38CF8536",
+      "HostSource": "src\\Plugin.cs",
+      "HostSourceSHA256": "152BDA7DCBAFC8F50B8541752BB2E08F66C3F36602EDD5DB7FAC77F37C28748A",
+      "SdkClassesVersion": "1.0.0.0",
+      "SdkClassesSHA256": "5C9B355342B6CD1F5456DDA1EAE1022E42799C459150E8FB203A614E2B2AF7B9",
+      "SdkInterfacesVersion": "1.0.0.0",
+      "SdkInterfacesSHA256": "923A1831F8B031A65C26701A6EB27FEC6F10B2B54FA01712185D98ACEC5DC0B5",
+      "Acceptance": "not-tested",
+      "ApplicationSHA256": "5E473BEB626D6A246C2AC2E5B916E178BFA338AF2ECB82A26851698832742319",
+      "VersionSource": "verified-build-reference-snapshot",
+      "ManagedRuntime": "netfx48",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll"
+    },
+    {
+      "AdMajor": 20,
+      "BuildAdVersion": "20.0.13.296",
+      "Dll": "hosts\\AD20\\LibrarySearch-1.1.0-beta.2-AD20.dll",
+      "DllSHA256": "9C92F7EF9C0DC8FBF546F8E0F78028E92AE667CB19A2C490531D03AFE032CB87",
+      "Registration": "hosts\\AD20\\LibrarySearch.ins",
+      "RegistrationSHA256": "4EAC5F94A76F66ABA0E38D90BB35B282851D3275115C8EB30B4C7116E2292857",
+      "CoreSHA256": "9C61725523330583D4C316646945883DDF288A62F2D673EC09A8BC6E38CF8536",
+      "HostSource": "src\\Plugin.cs",
+      "HostSourceSHA256": "152BDA7DCBAFC8F50B8541752BB2E08F66C3F36602EDD5DB7FAC77F37C28748A",
+      "SdkClassesVersion": "1.0.0.0",
+      "SdkClassesSHA256": "2744546FDDA707221AF51CCCCDD9BB62C8EAA0A68D0E34AA344DED646AF42EFF",
+      "SdkInterfacesVersion": "1.0.0.0",
+      "SdkInterfacesSHA256": "6AC3861C7B9D803AFC2EEB0E1EC6667891D262118A83CECF54458235D5298165",
+      "Acceptance": "not-tested",
+      "ApplicationSHA256": "0516BAA627829ADE55A264D291C9BE29A4B5D89C74B08791DBA5E1A936ED3570",
+      "VersionSource": "verified-build-reference-snapshot",
+      "ManagedRuntime": "netfx48",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll"
+    },
+    {
+      "AdMajor": 21,
+      "BuildAdVersion": "21.4.1.30",
+      "Dll": "hosts\\AD21\\LibrarySearch-1.1.0-beta.2-AD21.dll",
+      "DllSHA256": "4D2D95B26773203BEDEDA04D825540B72039300E7F0384918F242B88EC011380",
+      "Registration": "hosts\\AD21\\LibrarySearch.ins",
+      "RegistrationSHA256": "23E43C5C695DB77E5D6DFCFED3F0A977C213B03CE35A77BB907646DD53FAAA1D",
+      "CoreSHA256": "9C61725523330583D4C316646945883DDF288A62F2D673EC09A8BC6E38CF8536",
+      "HostSource": "src\\Plugin.cs",
+      "HostSourceSHA256": "152BDA7DCBAFC8F50B8541752BB2E08F66C3F36602EDD5DB7FAC77F37C28748A",
+      "SdkClassesVersion": "1.0.0.0",
+      "SdkClassesSHA256": "EC4272DFF49563FEAB690D27E9E745B23A2D0DEFF65C4FAA254E53DC468281BD",
+      "SdkInterfacesVersion": "1.0.0.0",
+      "SdkInterfacesSHA256": "CEE7FA018D8388E6CFC84270ACF040FD994DC012EFAFDBB5B241884B9DF35016",
+      "Acceptance": "not-tested",
+      "ApplicationSHA256": "3571A32E0856402AABE566618E4D9D6942905A03A61F36D459BB00552ACA5D09",
+      "VersionSource": "verified-build-reference-snapshot",
+      "ManagedRuntime": "netfx48",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll"
+    },
+    {
+      "AdMajor": 24,
+      "BuildAdVersion": "24.0.1.36",
+      "Dll": "hosts\\AD24\\LibrarySearch-1.1.0-beta.2-AD24.dll",
+      "DllSHA256": "E8299CD86D1BBEDC30299622A9B5DB5E9482473E0DB2D68D71F9D81E1A8F8B1D",
+      "Registration": "hosts\\AD24\\LibrarySearch.ins",
+      "RegistrationSHA256": "3BE9D4D4A7EFD62306C78AF22D604BD9D3CA456834D70776C72B132E74C05C8E",
+      "CoreSHA256": "9C61725523330583D4C316646945883DDF288A62F2D673EC09A8BC6E38CF8536",
+      "HostSource": "src\\Plugin.cs",
+      "HostSourceSHA256": "152BDA7DCBAFC8F50B8541752BB2E08F66C3F36602EDD5DB7FAC77F37C28748A",
+      "SdkClassesVersion": "1.0.0.0",
+      "SdkClassesSHA256": "577FF99AB69BDA60DB8A63460E027ABDC028AE8E70DE6732DAE33D5225556CC9",
+      "SdkInterfacesVersion": "1.0.0.0",
+      "SdkInterfacesSHA256": "3C9A1CD7BD4C3A705E468E7D80AD96E89BF1BAFA11505B1D0ED7687F649638B9",
+      "Acceptance": "not-tested",
+      "ApplicationSHA256": "BA9B9B33CBC50D922520AB97556173811281336A9635EBB973D943F7B803ADCE",
+      "VersionSource": "executable-resource",
+      "ManagedRuntime": "netfx48",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll"
+    },
+    {
+      "AdMajor": 25,
+      "BuildAdVersion": "25.7.1.20",
+      "Dll": "hosts\\AD25\\LibrarySearch-1.1.0-beta.2-AD25.dll",
+      "DllSHA256": "5201AA45CE5D4DD2EECCF18EF51DEA166CA137A34A77B1E453CDE970CF3D5FD6",
+      "Registration": "hosts\\AD25\\LibrarySearch.ins",
+      "RegistrationSHA256": "C037F9E20CCB4E939406CA1025DEF9EDC0003D83184E88583D1E7468DC71C2BB",
+      "CoreSHA256": "69711EC9AF60273E65BF6AACC5210C56A7B9B4279C642117C9CC1EF751EAE780",
+      "HostSource": "src\\Plugin.cs",
+      "HostSourceSHA256": "152BDA7DCBAFC8F50B8541752BB2E08F66C3F36602EDD5DB7FAC77F37C28748A",
+      "SdkClassesVersion": "1.0.0.0",
+      "SdkClassesSHA256": "312D0575DFA9E4188D49271804FF6DB52E98AE879D23042EDD6B98AB9EA3A2EB",
+      "SdkInterfacesVersion": "1.0.0.0",
+      "SdkInterfacesSHA256": "4FD5DF5839F961E232A3357FFB8B1D07E8535BE836DD4EFDBBF17180335F9BD6",
+      "Acceptance": "not-tested",
+      "ApplicationSHA256": "7A7D8DB978EA47ED5F97C6DDE22599EA11135435A7F3B0B33C315DB03E4A71A5",
+      "VersionSource": "executable-resource",
+      "ManagedRuntime": "net6windows",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2-net6.dll"
+    },
+    {
+      "AdMajor": 26,
+      "BuildAdVersion": "26.1.1.7",
+      "Dll": "hosts\\AD26\\LibrarySearch-1.1.0-beta.2-AD26.dll",
+      "DllSHA256": "C6C112ED014F6BC9EB6A99882A12F98659B0D0F55907BE69E64B381EE8C1E968",
+      "Registration": "hosts\\AD26\\LibrarySearch.ins",
+      "RegistrationSHA256": "F0DD2DF641CA7C4A2B98F416D88E99E4B44871764A073CB53E0A719765B99411",
+      "CoreSHA256": "4DC131F3485E397AA57EE0B5A3EAFF0F2E9D1F785B7EA1E89380670C37672E6F",
+      "HostSource": "src\\Plugin.cs",
+      "HostSourceSHA256": "152BDA7DCBAFC8F50B8541752BB2E08F66C3F36602EDD5DB7FAC77F37C28748A",
+      "SdkClassesVersion": "1.0.0.0",
+      "SdkClassesSHA256": "C084C20C15C2CA40A18BEF0FC9EEEA07390D9C239CA1A31CDA148B11F5AC4767",
+      "SdkInterfacesVersion": "1.0.0.0",
+      "SdkInterfacesSHA256": "CA8CC0F4E6D3B32A24A5A92FC15F2040C2E93FE904B3CB6B72F740678F27A8F3",
+      "Acceptance": "not-tested",
+      "ApplicationSHA256": "AE437C412DAED5B4304C883316E3B3F6D1AEC884C6CFAD154EA6A4A9FBAE1149",
+      "VersionSource": "executable-resource",
+      "ManagedRuntime": "net8windows",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2-net8.dll"
+    }
+  ],
+  "MatrixCompleted": true
+}

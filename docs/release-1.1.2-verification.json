@@ -1,0 +1,19 @@
+{
+  "version": "1.1.2",
+  "date": "2026-10-30",
+  "sha256": "CE3F2E047E65371FF187CEE320CA0C2CE8E86AFA536C98C32AAC56EC65E75B47",
+  "installer_manifest_files": 273,
+  "regression_checks": {
+    "netfx48": 256,
+    "net6windows": 256,
+    "net8windows": 256
+  },
+  "existing_adapter_member_checks": 133,
+  "native_converter_unchanged_from_1_1_1": true,
+  "native_converter_previous_tests": 72,
+  "horizontal_scrollbar_regression_reproduced_on_1_1_1": true,
+  "new_rendering_checks": 69,
+  "isolated_upgrade_reinstall_rollback_passed": true,
+  "license": "MIT; third-party notices retained",
+  "actual_AD_GUI_acceptance": "requires maintainer check"
+}

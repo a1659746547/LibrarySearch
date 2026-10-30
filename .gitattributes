@@ -1,0 +1,5 @@
+# Preserve bytes used by native-build-info and adapter SHA-256 manifests.
+* -text
+*.md text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf

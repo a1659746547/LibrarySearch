@@ -1,0 +1,28 @@
+# Local build products
+/.artifacts/
+/dist/
+**/target/
+**/.modern-build/
+/plugin/shared/
+/plugin/online/bin/*.exe
+*.pdb
+*.zip
+# Immutable adapter/core DLLs are intentional compatibility fixtures.
+
+# User, SDK and service configuration
+/targets.local.json
+/targets.available.json
+**/.easyeda_cache/
+**/admin/data/
+**/.env
+**/.env.*
+*.pfx
+*.p12
+*.key
+*.pem
+*.log
+__pycache__/
+.vs/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,477 @@
+{
+  "SchemaVersion": 1,
+  "Protocol": "pinned-cad-1",
+  "Compiler": "rustc 1.89.0 (29483883e 2025-08-04)",
+  "Sources": [
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/Cargo.lock",
+      "SHA256": "F40A81EB2626788A98DDE81272C3F9D5842F72213957E4D30C7D0E7C210B5F0F"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/Cargo.toml",
+      "SHA256": "768E4D11426E1D73744936C9C04CCCB828A57644A47F5634D73FACFCAA5C3ECE"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium-cli/Cargo.toml",
+      "SHA256": "A2E474A325D66F0053E6D414D89F3E6B38254A6377551A9829A09DF8BC2D4B44"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium-cli/src/main.rs",
+      "SHA256": "C242618DD3EDB07CC46C72CAF81724A4AAA599FD49E7352DB2149B7BC97C3B8C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium-derive/Cargo.toml",
+      "SHA256": "BBC3BB117AE1A803F65A9F1139F3D9FAE9660BCD269CB32B9788A68C7DD6C1B3"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium-derive/src/codegen.rs",
+      "SHA256": "344F0591FEA8C80A240708B20343DBD387AC3B989E96E33E4433520D38DB4D69"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium-derive/src/input.rs",
+      "SHA256": "4534A32C5D476186EB5345A5CA17CCA18CF06815E019386B9FDC22FF9C55EA46"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium-derive/src/lib.rs",
+      "SHA256": "68B9226A4D8C6938009B94C4028B2A1B9C8311FBBD44DBB1E42047A2C0A63497"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/Cargo.toml",
+      "SHA256": "FD5D2AC085E6091884173F5DA66A19AC0F3F8B011A390BFC166D0167C4CC63F6"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/examples/dump_comments.rs",
+      "SHA256": "75CD7780C0F03D376950A1DC9F4156CB403A1F2E6CA97E9D2F4CC4FE5D996770"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/binary/mod.rs",
+      "SHA256": "0E7A23C636409BCC8631E4CB593443C134B12CF60FBDAA15537C47F61D195E44"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/binary/reader.rs",
+      "SHA256": "22CB9ACB12327D43D2E44ADFCCA7A4646CB561C86B1AFACF254EB54A714354C9"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/binary/writer.rs",
+      "SHA256": "0AA9C5D2C48999373FF72A3729CCFF6078944E448572A6535A36A33F10AF9F0C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/bom.rs",
+      "SHA256": "36D73C21181BF5708FF48C5C72202DAF27FEDC8BB622AC9EBAF88DDB231B7195"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/color.rs",
+      "SHA256": "311BC6F76CA57FA24539009B67466A988C66038DC0EA044CF95800C045F3AEAC"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/compound.rs",
+      "SHA256": "6049ABE2B6888EB17507DEEB5422C1C45B3DC745F05D68F8B4EC2E5EED39BFAC"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/coord.rs",
+      "SHA256": "DD1FA7B3719C3DA17D5CD725A5F5E3E33B66A6C149FE347C18EC0D39895B9065"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/diagnostic.rs",
+      "SHA256": "E080FACB3BD74589E3903469A45E0EEED52D39DB6F15B8F4AC1CEDC12835D1BB"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/dto/mod.rs",
+      "SHA256": "36247E361437097FFF46D7BF8EB6949B677C99D7965AFE8E66405D4DDABD881A"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/dto/pcb.rs",
+      "SHA256": "4BC6F827F821EF0D78857E8400577556B376F02A5B1F63D3931DF3B9033FBBC1"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/dto/sch.rs",
+      "SHA256": "6F01C9FEA07AFEB2DC3C50D15D2CE9993A062466EA7A7AE07F4B4F4788B1DB49"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/encoding.rs",
+      "SHA256": "53F05AE697F1E7485DC26B4211F64678505D530A92903B8F822CE11EC3AE7838"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/enums.rs",
+      "SHA256": "86AAF03AC76B66AEF1D36844EA44D46C84D5736B0019603910D5671A98090DD9"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/error.rs",
+      "SHA256": "3A14F583075176EF82BA1B95D776D3518471CEA3ED3145CE64F064E5173BD545"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/file.rs",
+      "SHA256": "B63A2A01F59DF6E8EEADF880E6469E8DF0488F9801822082CAE960019D6F5C7C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/intlib.rs",
+      "SHA256": "6FF2F4A6ABCDD7015A644391FE8EF66696B2E7AD82BDD7A44F5FE02B87D57839"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/lib.rs",
+      "SHA256": "46828A4F499A087B548F890598FED2C1BAC582501F49E8B261C66EAE773B8437"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/libpkg.rs",
+      "SHA256": "E2646382C4F348EFC7C070D510B641060BE5BE509AEB0BAA438DEBCA4E7F9D28"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/netlist.rs",
+      "SHA256": "8B1FB4D7F060E068911A716A8FC83E01F9A0DCD5F280801E9DA168492B22C435"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/parameter.rs",
+      "SHA256": "217145B0F2DB958764ECAAD42DAB655D430063248E0692B03B39F6784A583925"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/binary.rs",
+      "SHA256": "E1A41778FC4B70488FB1AF012B8D81CB099AEB87BFEC1A65D9DCB7863FC8CB67"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/builders.rs",
+      "SHA256": "A9E697022E31E5E95E7E9D882F4A38D7160AB4AECC2A25B85248F327DCC351A4"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/component.rs",
+      "SHA256": "32E2C2730B4CF1A4B9DA499D40DCCAACF52BFBC1947CDC26047E4CCA0DC1AA64"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/defaults.rs",
+      "SHA256": "76813BDAC705E7875BD4D016E1482CCD37F04100B7121FD064EA85E17DFD474F"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/doc_codec.rs",
+      "SHA256": "B5CEF8749AF78D5546D1AFF4E3C85E8FC94D8FEEC0A22502CECB60723F3DECCA"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/document.rs",
+      "SHA256": "47B64E60481297B96661505B43EAAB9E93A1768BA57C41D56DB5437182D6B7E6"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/embedded.rs",
+      "SHA256": "19FD23EFEEFD1D0656E7B76FEE7396408B0B11A657CC105F93E9E8AB3D367FAC"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/flatten.rs",
+      "SHA256": "B88987605CC8BD78ED7F9AF282089BBBCB19AD0C211625EF543E21532D87C85F"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/geometry.rs",
+      "SHA256": "8B446ECC93C3BD388B98E609C0166CAB7762F867D9457CFBDD70031B32F6BB91"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/layer.rs",
+      "SHA256": "0FE0035B1683D15B0F7C4C5425C9AC2558037CB1EA76388344A24A3B67362618"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/library.rs",
+      "SHA256": "B0617EB6FFE849CCAA65F4905686FBDF6E3C3010E50A49C12644B99E64E95432"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/mod.rs",
+      "SHA256": "09073A9DB6AED1C5691A7C88D2F1865868A1D924A894D7874FF739CE02F5C9E9"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/model3d.rs",
+      "SHA256": "6322C9F54A9C5D5058193D4CFA5F90AD832CA064F7266E6A4F4C185EB168D4B0"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/polygon.rs",
+      "SHA256": "4055B2DB5FAD130732DD9B992BFD412F59C3CCC1BB1A6ED56AF33E4F5DEA53DE"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/primitives.rs",
+      "SHA256": "53057171E58E97C7F96427BAA46C6CEFFAB7430981B272745809B0398C40D7BC"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/reader.rs",
+      "SHA256": "1C9552C06BB73EAF04916C1E5A3117067C376AD2010289E12D84F2DD4F9BAFC5"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/rule.rs",
+      "SHA256": "1EE097305C5BAEE5DAE0F8ADB22B8B07D48ACFFD18B67359F4CF1E272FAE8DEB"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/pcb/writer.rs",
+      "SHA256": "AB0321FD6FA68A34EA5CF537D77FCBD6696AC3F79E087D10D58D7E5D50066CE3"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/context.rs",
+      "SHA256": "FD6F7BACDC4BB2369F8B42EC6125A07AC7530309296BB1431AC36D38A9E2219D"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/layer_colors.rs",
+      "SHA256": "6E25AA50D580A3D7817BE87F5538D3FF61056942D161CFE25D3825EE31F4B5B3"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/mod.rs",
+      "SHA256": "E2CC6A896244702D5EFE69D4FB462F7F679BE4A459C3D9DFFA954CC3948BEADE"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/overline.rs",
+      "SHA256": "1D7591C77925E3633ABB93F04311316A23831806DBCA2C3DCCC3D532F051F6A4"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/pcb.rs",
+      "SHA256": "0224632337911F54056C5094B95273729FA0FC08426631AF422D1EBEB046B45C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/raster.rs",
+      "SHA256": "6644AED460FC126E4C7678C9406BE4FD9FD87F72A6B83EDFACAB553AFFB0D5BE"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/sch.rs",
+      "SHA256": "1A2186BF1DB0DC055FA8FFD6FD17F38ECFEDC13504EAF0E1C4BEDA7EEE49C754"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/svg.rs",
+      "SHA256": "C559ADF45DC19918B2040EA3F23DADDADE18F3C3270A6317E5F173F5F9B7B843"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/render/transform.rs",
+      "SHA256": "2284D29779EE4542B61CBF12D395C21EE9F973EC4AFBE1F2903EF76892E9F1CA"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/binary.rs",
+      "SHA256": "95F0DE26FCA511F28CDDFEB61DD83C08E139AD8B1135A236CE9E83251CE09DD6"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/codec.rs",
+      "SHA256": "F09BBF2140A3CA8949F4ED54F71626020A4D715FAE49A0E862120814785E3262"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/component.rs",
+      "SHA256": "5B3F2A509596C0476CFC932BC461BC6EDA2380BC182C5A9CFEF08DFD8BA2B113"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/document.rs",
+      "SHA256": "F00207807085AFC8D82466C38FDEB9BE9DFD5D703B0DBD7C1692E70130A17CC3"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/implementation.rs",
+      "SHA256": "FC6250FE1DFF6B1DDA0F64FD75D78FE6DA343F2D381E16DF6B8366FFCB94B349"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/library.rs",
+      "SHA256": "CEE87539E3713AFE658A5BA44B63B893B1C5A275205C3A9643D50A532451E00C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/mod.rs",
+      "SHA256": "A65E019165770FA6C8EEE8267C96924F77EDF0191B75A1D4076327802E7DCA8C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/primitives.rs",
+      "SHA256": "D89529A4123833853C949E81DFB683C8931645FF36D76DB7A8E6573DA87B81E9"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/reader.rs",
+      "SHA256": "3ED61C7AD40CF9EBC832CF15C5D24F3BC08C2BF27ABE379D49709D75A9D1AB4E"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/src/sch/writer.rs",
+      "SHA256": "C1E8074243975B4ABD175261EEAB37335F4A278A8B91B95A4D04D17352F9C5BB"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/bom_roundtrip.rs",
+      "SHA256": "97643FAB38D15330B49505F9276BCE7CEEE278AE9CADFEFA1E0BCE9BF9331E2C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/compound_smoke.rs",
+      "SHA256": "BA09CB1F02C3DA7119C6E20A26164A572BD3046113148185A59DCCC528FD4CC1"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/derive_crate_override.rs",
+      "SHA256": "EFCDA524D63A06A81809068A3336D0C5964E4374BCACC0A291199F9066947775"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/from_scratch.rs",
+      "SHA256": "821CBB3DFD335EBC7A785E5EFBE816DA2BEF7B807B9F6574628111F5E3F341ED"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/intlib_bidirectional.rs",
+      "SHA256": "7BB90A987D56E5EFF95B63D5D79C7B4305E6BFE3822D9C417EA8365C035DABD6"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/json_snapshots.rs",
+      "SHA256": "FFA65C22F57F812546F15D980ECEE6B54863D103ABF751A787FDDEB90D0C362C"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/panic_harness.rs",
+      "SHA256": "1EDA45DBB4633CA396196C02EE8D96D8C0B275DCC98C4B14A7C6071E479E8241"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/pcb_roundtrip.rs",
+      "SHA256": "E8BE1075250281BA6316440D987314F5A7BEE4FDFE556ADC22EF11D0FC94F1A4"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/render_smoke.rs",
+      "SHA256": "A2089AC4C0EABE783E31BEFCBF31896451EF1623015DBE91AD5B2F4381407699"
+    },
+    {
+      "Path": "converter/dependencies/altiumrs-2b45c1f91278680255d1f8dac067b95e0917f143/crates/altium/tests/sch_roundtrip.rs",
+      "SHA256": "E6647869F46E504F2E8AC774B639F62A0E3884F58B8DC0622B2EA028336D8D18"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/Cargo.lock",
+      "SHA256": "7F8C702B6DB1703FD3B1D8E16E0381DE6B4DB0719CAF3EC51AA25A50B57068E8"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/Cargo.toml",
+      "SHA256": "73A96666CCD99858D656CB28B9567A93046AFBC0C8DBC13628F1812590F117D8"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/examples/audit_pcb_geometry.rs",
+      "SHA256": "4E892C35ABC6612AB5724BB67158BCABCEFC9B1E5FB3F7BB70091C799908721F"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/examples/audit_pin_geometry.rs",
+      "SHA256": "7C44976115F3A189B46DC8AF5AF8AFA7EF5426F64632A39C007BA2C7CED01100"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/examples/author_test_project.rs",
+      "SHA256": "6CF3E7E8DCE8BD0632F632BE411121325C64BBB669D937A5B082B21C22E6334A"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/examples/dump_model_records.rs",
+      "SHA256": "67058B1F33834B772BACE8651792A1FF38597FA9BD94F524950C871582507769"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/examples/eco_fixture.rs",
+      "SHA256": "2BF4ABABC7722F4318EBCBE415BF1EF51E372BA92761FBFF777861DB6E254930"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/examples/large_local_index_fixture.rs",
+      "SHA256": "C8DE6852E8E44448AE311D61671B15774686283DEF2E07B3CB99BC2DBB1B9B6A"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/examples/verify_fast_fetch.rs",
+      "SHA256": "34B0BCB989A4C91DC1C3D3157FCA80AF147759836A776BF9D8BC370322B84EBD"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/bin/footprint-repair.rs",
+      "SHA256": "B9A7BA0A70592466B3FDFCE23E211122CBF580C8C76970FD8707242C9CE173F2"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/cli/args.rs",
+      "SHA256": "3C3D7400476697AF29E9963D16630A3A04579F2F302B30FF6B0E8BC69D88DA04"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/cli/mod.rs",
+      "SHA256": "59D98E26C41A2AE998BA465FA43B74D6E93021D664649646CF5C9FE2CD1CDD0A"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/convert/appearance.rs",
+      "SHA256": "FEEBA9B20433496728AB8F4BC8E1823D634982E1E3066A0C417544932DB76952"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/convert/footprint.rs",
+      "SHA256": "EFA2BA0DEF28752B02A32561D1FF850882032F136176042B5170A43441FC2DCB"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/convert/mod.rs",
+      "SHA256": "96B419980AAC6F7F1B67712B86A94A8C966001BB14BFA78A173F8E8709009497"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/convert/model3d.rs",
+      "SHA256": "0A739A35B5FB2F20F742D86D0E7B3A87425F3C08F70DE18F74DD0FBB2AE2E214"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/convert/symbol.rs",
+      "SHA256": "4F0BFB367AB6DB9CD91C9172CE7DB92474E9BB59B2423B1962102A2B1219EFEB"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/easyeda/api.rs",
+      "SHA256": "684C483CB740C485558E5631252EA17BEBF936F8916F2AC66231AFB909047E89"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/easyeda/browser.rs",
+      "SHA256": "F17E6C45D5B99EEAFCBE3D90186DD20D1A0581B6D01766BF2FD6B9704E12E98B"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/easyeda/canvas.rs",
+      "SHA256": "1A5B05B7937479D87126418D5A238965564EC39DFD85934BD56E50B33FE74B5E"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/easyeda/geometry.rs",
+      "SHA256": "1C34C7886C46963017E371A3B0E62C6C0480EB213603F7A040F22A23D8D27F7A"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/easyeda/mod.rs",
+      "SHA256": "3AC6AD374587B4F366A93392AB757619B9CDE3AD27D14A8D055692BED56145FA"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/easyeda/parser.rs",
+      "SHA256": "779EEC9F6483CE118D51562BAC665B7D9E49B3013189860175B352A331B08797"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/easyeda/types.rs",
+      "SHA256": "F48967EEC1F6A0CD3C4692AAA32883A9AB22E1653E4267A8C018B74F9AA10A94"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/error.rs",
+      "SHA256": "44D255366654B9FC25D61B112E485CA0A67A83E7F580A07F686B920CCDFECE47"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/lib.rs",
+      "SHA256": "0B7155E62616B39BE6718183DB150764ACA14A51EDD2B13BFA00969ECC0E0475"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/local_catalog.rs",
+      "SHA256": "A92E63FC53798D677BE032C7A621CAD334BE8D5C429B1FD0A528144475E0245B"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/local_index.rs",
+      "SHA256": "499B16BB865D587FA7F509C9CB8E6F144688780841B8D7B78CAAB48D8454731B"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/main.rs",
+      "SHA256": "E1D7811D087E2E8C40DBA9D9E3345C70BA4500656B0C819485126DDB77DC72E0"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/slot_repair.rs",
+      "SHA256": "065AC136E2118A24E8D424971AA54422940DA6E86D676BC3A117C63956A84338"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/src/source_cache.rs",
+      "SHA256": "A6A4B8DC8149BDD41F289186CF585BC67434F8EA93949DE3DCFC4C6EBD889B55"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/tests/converter_regression.rs",
+      "SHA256": "B650CE91CA54887BDB5051C99C53CB2431F86C4611DA79D844C419BC56772316"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/tests/local_catalog.rs",
+      "SHA256": "CCAB364C716AF532D9A6FA0B46D60A126E8531A75638E43DB1640EB8FF05719D"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/tests/model_native_layout.rs",
+      "SHA256": "E1E5ABE941BF4CAE097A5A8D5CAF779A0FF3FE223666C1DD2EBCD6884F4DD932"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/tests/pcb_union_names.rs",
+      "SHA256": "FF52491B415501710AF8EA3FB30870ADC104DAA2497411168799FB700C80C1DC"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/tests/pin_state_width.rs",
+      "SHA256": "9D57A62314903A78935EB37FFE02BFFDB469881BD1F3CDB3CFF817ADB2368B13"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/tests/pipeline_contract.rs",
+      "SHA256": "5CDF05CC00001C9D00BA922B0AB3833F5A1A8AE75247C73B0CA729E735A9CBBD"
+    },
+    {
+      "Path": "converter/easyeda2altium-ad21515ef0a7dd65cf0462458dc1ba8e8f47ac6d/tests/slot_pipeline.rs",
+      "SHA256": "BE3A3BA52CA3C446877BD048FFDBC49B3FD39D2510BCB8A844A1DEEC19C2D26F"
+    }
+  ],
+  "Binaries": [
+    {
+      "Path": "easyeda2altium.exe",
+      "SHA256": "BE5AE0C93AC4F6E41546C31F7F0D06990DBF1221F1A8FDAAA9B8CF674A35D4BF"
+    },
+    {
+      "Path": "footprint-repair.exe",
+      "SHA256": "784250BFE2A4304DDD8FF0E253F1A7270178617DB16D2BA5A4E207C80C6E13CA"
+    }
+  ]
+}

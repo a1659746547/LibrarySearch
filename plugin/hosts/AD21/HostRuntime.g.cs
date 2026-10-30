@@ -1,0 +1,1 @@
+namespace LibrarySearch { internal static class HostRuntime { internal const string CoreFileName = "LibrarySearch.Core-1.1.0-beta.2.dll"; internal const int AdMajor = 21; internal const string SdkVersion = "21.4.1.30"; } }

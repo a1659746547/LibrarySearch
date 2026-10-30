@@ -1,0 +1,1592 @@
+{
+  "SchemaVersion": 1,
+  "PluginVersion": "1.1.2",
+  "CoreBindingVersion": "1.1.0-beta.2",
+  "OriginalPackageSHA256": "FDFA6DE3C936DAA7AA92590F23B37C1E75DF0CAFED62BD2726FC1FAF8DD80360",
+  "BuildMode": "unchanged-sdk-adapters-new-abi-compatible-cores",
+  "Targets": [
+    {
+      "AdMajor": 18,
+      "HostPath": "hosts\\AD18\\LibrarySearch-1.1.0-beta.2-AD18.dll",
+      "HostSHA256": "FA977681402CAAF008AD2F567E727C9D3CAE1CC030D169F61153DEA104C93B51",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll",
+      "CoreSHA256": "E9AB1FD94AE0AC978102A657DD8F4DB7C5BED68891930E2FB97DBABB0F3DDE33",
+      "ManagedRuntime": "netfx48",
+      "CheckedMembers": [
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "ConfigureHost",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "get_HostTarget",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "string",
+            []
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string",
+              "System.Exception"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": ".ctor",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "LibrarySearch.UserSettings"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_PlaceRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "set_PlacementContext",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Func`2<string,string>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_OpenRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "FilePath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "SymbolPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "FootprintPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Kind",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetNativeBusy",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "bool",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Code",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Name",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "ShowUserMessage",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Package",
+          "Signature": [
+            "field",
+            "LibrarySearch.LibraryPackage"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryStore",
+          "Member": "CopyToProject",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "LibrarySearch.ProjectFiles",
+            [
+              "LibrarySearch.LibraryRecord",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetStatus",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "bool"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "AdMajor": 19,
+      "HostPath": "hosts\\AD19\\LibrarySearch-1.1.0-beta.2-AD19.dll",
+      "HostSHA256": "CD6B2DF99AD93C528E764A0C6CE0F8C79EEE64D13D85B6EE7E89B9AA9BD9E631",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll",
+      "CoreSHA256": "E9AB1FD94AE0AC978102A657DD8F4DB7C5BED68891930E2FB97DBABB0F3DDE33",
+      "ManagedRuntime": "netfx48",
+      "CheckedMembers": [
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "ConfigureHost",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "get_HostTarget",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "string",
+            []
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string",
+              "System.Exception"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": ".ctor",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "LibrarySearch.UserSettings"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_PlaceRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "set_PlacementContext",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Func`2<string,string>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_OpenRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "FilePath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "SymbolPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "FootprintPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Kind",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetNativeBusy",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "bool",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Code",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Name",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "ShowUserMessage",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Package",
+          "Signature": [
+            "field",
+            "LibrarySearch.LibraryPackage"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryStore",
+          "Member": "CopyToProject",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "LibrarySearch.ProjectFiles",
+            [
+              "LibrarySearch.LibraryRecord",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetStatus",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "bool"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "AdMajor": 20,
+      "HostPath": "hosts\\AD20\\LibrarySearch-1.1.0-beta.2-AD20.dll",
+      "HostSHA256": "9C92F7EF9C0DC8FBF546F8E0F78028E92AE667CB19A2C490531D03AFE032CB87",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll",
+      "CoreSHA256": "E9AB1FD94AE0AC978102A657DD8F4DB7C5BED68891930E2FB97DBABB0F3DDE33",
+      "ManagedRuntime": "netfx48",
+      "CheckedMembers": [
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "ConfigureHost",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "get_HostTarget",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "string",
+            []
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string",
+              "System.Exception"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": ".ctor",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "LibrarySearch.UserSettings"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_PlaceRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "set_PlacementContext",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Func`2<string,string>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_OpenRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "FilePath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "SymbolPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "FootprintPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Kind",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetNativeBusy",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "bool",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Code",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Name",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "ShowUserMessage",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Package",
+          "Signature": [
+            "field",
+            "LibrarySearch.LibraryPackage"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryStore",
+          "Member": "CopyToProject",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "LibrarySearch.ProjectFiles",
+            [
+              "LibrarySearch.LibraryRecord",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetStatus",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "bool"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "AdMajor": 21,
+      "HostPath": "hosts\\AD21\\LibrarySearch-1.1.0-beta.2-AD21.dll",
+      "HostSHA256": "4D2D95B26773203BEDEDA04D825540B72039300E7F0384918F242B88EC011380",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll",
+      "CoreSHA256": "E9AB1FD94AE0AC978102A657DD8F4DB7C5BED68891930E2FB97DBABB0F3DDE33",
+      "ManagedRuntime": "netfx48",
+      "CheckedMembers": [
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "ConfigureHost",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "get_HostTarget",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "string",
+            []
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string",
+              "System.Exception"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": ".ctor",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "LibrarySearch.UserSettings"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_PlaceRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "set_PlacementContext",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Func`2<string,string>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_OpenRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "FilePath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "SymbolPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "FootprintPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Kind",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetNativeBusy",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "bool",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Code",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Name",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "ShowUserMessage",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Package",
+          "Signature": [
+            "field",
+            "LibrarySearch.LibraryPackage"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryStore",
+          "Member": "CopyToProject",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "LibrarySearch.ProjectFiles",
+            [
+              "LibrarySearch.LibraryRecord",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetStatus",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "bool"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "AdMajor": 24,
+      "HostPath": "hosts\\AD24\\LibrarySearch-1.1.0-beta.2-AD24.dll",
+      "HostSHA256": "E8299CD86D1BBEDC30299622A9B5DB5E9482473E0DB2D68D71F9D81E1A8F8B1D",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2.dll",
+      "CoreSHA256": "E9AB1FD94AE0AC978102A657DD8F4DB7C5BED68891930E2FB97DBABB0F3DDE33",
+      "ManagedRuntime": "netfx48",
+      "CheckedMembers": [
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "ConfigureHost",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "get_HostTarget",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "string",
+            []
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string",
+              "System.Exception"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": ".ctor",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "LibrarySearch.UserSettings"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_PlaceRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "set_PlacementContext",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Func`2<string,string>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_OpenRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "FilePath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "SymbolPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "FootprintPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Kind",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetNativeBusy",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "bool",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Code",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Name",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "ShowUserMessage",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Package",
+          "Signature": [
+            "field",
+            "LibrarySearch.LibraryPackage"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryStore",
+          "Member": "CopyToProject",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "LibrarySearch.ProjectFiles",
+            [
+              "LibrarySearch.LibraryRecord",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetStatus",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "bool"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "AdMajor": 25,
+      "HostPath": "hosts\\AD25\\LibrarySearch-1.1.0-beta.2-AD25.dll",
+      "HostSHA256": "5201AA45CE5D4DD2EECCF18EF51DEA166CA137A34A77B1E453CDE970CF3D5FD6",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2-net6.dll",
+      "CoreSHA256": "9807C68D590E08CFCE98C4D1872302F7F30A9210D29D825508AEA00FFCBBF054",
+      "ManagedRuntime": "net6windows",
+      "CheckedMembers": [
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string",
+              "System.Exception"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": ".ctor",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "LibrarySearch.UserSettings"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_PlaceRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "set_PlacementContext",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Func`2<string,string>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_OpenRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Name",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "FilePath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Kind",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Package",
+          "Signature": [
+            "field",
+            "LibrarySearch.LibraryPackage"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetNativeBusy",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "bool",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetStatus",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "bool"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "ShowUserMessage",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Code",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "ConfigureHost",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "get_HostTarget",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "string",
+            []
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryStore",
+          "Member": "CopyToProject",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "LibrarySearch.ProjectFiles",
+            [
+              "LibrarySearch.LibraryRecord",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "SymbolPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "FootprintPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        }
+      ]
+    },
+    {
+      "AdMajor": 26,
+      "HostPath": "hosts\\AD26\\LibrarySearch-1.1.0-beta.2-AD26.dll",
+      "HostSHA256": "C6C112ED014F6BC9EB6A99882A12F98659B0D0F55907BE69E64B381EE8C1E968",
+      "CorePath": "shared\\LibrarySearch.Core-1.1.0-beta.2-net8.dll",
+      "CoreSHA256": "E3E2A24FEC9FF4787DFBDC602654495B197888C95BA9636FBA21D6A3FA36ECD4",
+      "ManagedRuntime": "net8windows",
+      "CheckedMembers": [
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.UserLog",
+          "Member": "Write",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string",
+              "System.Exception"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": ".ctor",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "LibrarySearch.UserSettings"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_PlaceRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "set_PlacementContext",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Func`2<string,string>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "add_OpenRequested",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "System.Action`1<LibrarySearch.LibraryRecord>"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Name",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "FilePath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Kind",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Package",
+          "Signature": [
+            "field",
+            "LibrarySearch.LibraryPackage"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetNativeBusy",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "bool",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "SetStatus",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "bool"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryPanel",
+          "Member": "ShowUserMessage",
+          "Signature": [
+            "method",
+            32,
+            0,
+            "void",
+            [
+              "string",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryRecord",
+          "Member": "Code",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "ConfigureHost",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "void",
+            [
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ReleaseInfo",
+          "Member": "get_HostTarget",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "string",
+            []
+          ]
+        },
+        {
+          "Type": "LibrarySearch.LibraryStore",
+          "Member": "CopyToProject",
+          "Signature": [
+            "method",
+            0,
+            0,
+            "LibrarySearch.ProjectFiles",
+            [
+              "LibrarySearch.LibraryRecord",
+              "string"
+            ]
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "SymbolPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        },
+        {
+          "Type": "LibrarySearch.ProjectFiles",
+          "Member": "FootprintPath",
+          "Signature": [
+            "field",
+            "string"
+          ]
+        }
+      ]
+    }
+  ],
+  "ActualADAcceptance": "pending-user-tests"
+}

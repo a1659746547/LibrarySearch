@@ -1,0 +1,1887 @@
+//! Writer for `.PcbLib` and `.PcbDoc` files.
+
+use std::collections::BTreeMap;
+use std::io::{Cursor, Seek, Write};
+use std::path::Path;
+
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
+use tokio::io::AsyncWrite;
+
+use super::binary::{
+    PrimitiveFlags, layer_byte_to_name, layer_name_to_byte, write_common_prefix,
+    write_common_prefix_full, write_coord_point,
+};
+use super::component::Component;
+use super::document::Document;
+use super::library::Library;
+use super::primitives::{Arc, ComponentBody, Fill, Pad, Region, Text, Track, Via};
+use crate::binary::BinaryWriter;
+use crate::compound::CompoundFile;
+use crate::coord::Coord;
+use crate::encoding;
+use crate::error::Result;
+use crate::parameter::ParameterMap;
+
+// Library writer
+
+impl Library {
+    /// Serialise this library to a `.PcbLib` byte buffer.
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut cf = CompoundFile::create()?;
+        let mut section_keys: BTreeMap<String, String> = self.section_keys.clone();
+        ensure_section_keys(self, &mut section_keys);
+
+        write_file_header(&mut cf, self)?;
+        write_section_keys_stream(&mut cf, self, &section_keys)?;
+        write_library_storage(&mut cf, self, &section_keys)?;
+        write_default_root_stubs(&mut cf, self)?;
+        write_additional_streams(&mut cf, "", &self.additional_root_streams)?;
+        cf.into_bytes()
+    }
+
+    /// Write to disk as a `.PcbLib`.
+    pub async fn write(&self, path: impl AsRef<Path>) -> Result<()> {
+        let bytes = self.to_bytes()?;
+        tokio::fs::write(path, bytes).await?;
+        Ok(())
+    }
+
+    /// Write to any `AsyncWrite`.
+    pub async fn write_async<W>(&self, mut writer: W) -> Result<()>
+    where
+        W: AsyncWrite + Unpin,
+    {
+        use tokio::io::AsyncWriteExt;
+        let bytes = self.to_bytes()?;
+        writer.write_all(&bytes).await?;
+        writer.flush().await?;
+        Ok(())
+    }
+}
+
+fn section_key_from_name(name: &str) -> String {
+    let trimmed = if name.len() > 31 { &name[..31] } else { name };
+    trimmed.replace('/', "_")
+}
+
+fn ensure_section_keys(library: &Library, section_keys: &mut BTreeMap<String, String>) {
+    for component in &library.components {
+        if section_keys.contains_key(&component.name) {
+            continue;
+        }
+        let mangled = section_key_from_name(&component.name);
+        if mangled != component.name {
+            section_keys.insert(component.name.clone(), mangled);
+        }
+    }
+}
+
+fn write_file_header(cf: &mut CompoundFile, library: &Library) -> Result<()> {
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+
+    let version_text = "PCB 6.0 Binary Library File";
+    let version_bytes = encoding::encode(version_text);
+    bw.write_i32(version_bytes.len() as i32)?;
+    bw.write_u8(version_bytes.len() as u8)?;
+    bw.write_bytes(&version_bytes)?;
+
+    bw.write_f64(5.01)?;
+
+    let unique_id = if library.unique_id.is_empty() {
+        "AAAAAAAA"
+    } else {
+        library.unique_id.as_str()
+    };
+    let id_bytes = encoding::encode(unique_id);
+    bw.write_i32(id_bytes.len() as i32)?;
+    bw.write_u8(id_bytes.len() as u8)?;
+    bw.write_bytes(&id_bytes)?;
+
+    cf.write_stream("FileHeader", &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_section_keys_stream(
+    cf: &mut CompoundFile,
+    library: &Library,
+    section_keys: &BTreeMap<String, String>,
+) -> Result<()> {
+    let needs: Vec<&Component> = library
+        .components
+        .iter()
+        .filter(|c| section_keys.contains_key(&c.name))
+        .collect();
+    if needs.is_empty() {
+        return Ok(());
+    }
+
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    bw.write_i32(needs.len() as i32)?;
+    for component in needs {
+        bw.write_pascal_string_block(&component.name)?;
+        let key = section_keys
+            .get(&component.name)
+            .cloned()
+            .unwrap_or_default();
+        bw.write_pascal_string_block(&key)?;
+    }
+    cf.write_stream("SectionKeys", &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_library_storage(
+    cf: &mut CompoundFile,
+    library: &Library,
+    section_keys: &BTreeMap<String, String>,
+) -> Result<()> {
+    cf.create_storage("Library")?;
+    write_storage_header(cf, "Library/Header", 1)?;
+    write_library_data(cf, library)?;
+    for component in &library.components {
+        let section_key = section_keys
+            .get(&component.name)
+            .cloned()
+            .unwrap_or_else(|| component.name.clone());
+        write_footprint(cf, component, &section_key)?;
+    }
+    write_library_models(cf, library)?;
+    write_default_library_stubs(cf, library)?;
+    write_additional_streams(cf, "Library", &library.additional_library_streams)?;
+    Ok(())
+}
+
+fn write_storage_header(cf: &mut CompoundFile, path: &str, record_count: i32) -> Result<()> {
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    bw.write_i32(record_count)?;
+    cf.write_stream(path, &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_library_data(cf: &mut CompoundFile, library: &Library) -> Result<()> {
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+
+    let mut params = ParameterMap::new();
+    if let Some(stored) = &library.library_parameters {
+        super::defaults::ensure_pcblib_parameters_complete(
+            stored,
+            library.components.len(),
+            &mut params,
+        );
+    } else {
+        super::defaults::populate_default_pcblib_parameters(&mut params, library.components.len());
+    }
+    params.insert("WEIGHT", library.components.len().to_string());
+    write_c_string_param_block(&mut bw, &params)?;
+
+    bw.write_u32(library.components.len() as u32)?;
+    for component in &library.components {
+        bw.write_pascal_string_block(&component.name)?;
+    }
+
+    cf.write_stream("Library/Data", &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_footprint(cf: &mut CompoundFile, component: &Component, section_key: &str) -> Result<()> {
+    cf.create_storage(section_key)?;
+    let primitive_count = component.pads.len()
+        + component.tracks.len()
+        + component.vias.len()
+        + component.arcs.len()
+        + component.texts.len()
+        + component.fills.len()
+        + component.regions.len()
+        + component.component_bodies.len();
+    write_storage_header(cf, &format!("{section_key}/Header"), primitive_count as i32)?;
+    write_footprint_parameters(cf, component, section_key)?;
+    write_footprint_wide_strings(cf, component, section_key)?;
+    write_footprint_data(cf, component, section_key)?;
+    write_default_footprint_stubs(cf, component, section_key)?;
+    write_additional_streams(cf, section_key, &component.additional_streams)?;
+    Ok(())
+}
+
+/// Per-footprint `PrimitiveGuids` + `UniqueIDPrimitiveInformation` stubs:
+/// empty u32(0) header + zero-byte data.
+fn write_default_footprint_stubs(
+    cf: &mut CompoundFile,
+    component: &Component,
+    section_key: &str,
+) -> Result<()> {
+    for sub in ["PrimitiveGuids", "UniqueIDPrimitiveInformation"] {
+        let header_path = format!("{section_key}/{sub}/Header");
+        let data_path = format!("{section_key}/{sub}/Data");
+        if !component
+            .additional_streams
+            .contains_key(&format!("{sub}/Header"))
+        {
+            cf.write_stream(&header_path, &0u32.to_le_bytes())?;
+        }
+        if !component
+            .additional_streams
+            .contains_key(&format!("{sub}/Data"))
+        {
+            cf.write_stream(&data_path, &[])?;
+        }
+    }
+    Ok(())
+}
+
+fn write_footprint_parameters(
+    cf: &mut CompoundFile,
+    component: &Component,
+    section_key: &str,
+) -> Result<()> {
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+
+    let mut params = ParameterMap::new();
+    for (k, v) in &component.additional_parameters {
+        params.insert(k, v.clone());
+    }
+    params.insert("PATTERN", component.name.clone());
+    params.insert("HEIGHT", component.height.to_raw().to_string());
+    if let Some(d) = &component.description {
+        params.insert("DESCRIPTION", d.clone());
+    }
+    if let Some(g) = &component.item_guid {
+        params.insert("ITEMGUID", g.clone());
+    }
+    if let Some(g) = &component.item_revision_guid {
+        params.insert("REVISIONGUID", g.clone());
+    }
+    write_c_string_param_block(&mut bw, &params)?;
+
+    cf.write_stream(format!("{section_key}/Parameters"), &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_footprint_wide_strings(
+    cf: &mut CompoundFile,
+    component: &Component,
+    section_key: &str,
+) -> Result<()> {
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    let mut params = ParameterMap::new();
+    for (i, text) in component.texts.iter().enumerate() {
+        let encoded = text
+            .text
+            .chars()
+            .map(|c| (c as u32).to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        params.insert(format!("ENCODEDTEXT{i}").as_str(), encoded);
+    }
+    write_c_string_param_block(&mut bw, &params)?;
+    cf.write_stream(format!("{section_key}/WideStrings"), &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_footprint_data(
+    cf: &mut CompoundFile,
+    component: &Component,
+    section_key: &str,
+) -> Result<()> {
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+
+    bw.write_pascal_string_block(&component.name)?;
+
+    for arc in &component.arcs {
+        bw.write_u8(1)?;
+        write_arc(&mut bw, arc)?;
+    }
+    for pad in &component.pads {
+        bw.write_u8(2)?;
+        write_pad(&mut bw, pad)?;
+    }
+    for via in &component.vias {
+        bw.write_u8(3)?;
+        write_via(&mut bw, via)?;
+    }
+    for track in &component.tracks {
+        bw.write_u8(4)?;
+        write_track(&mut bw, track)?;
+    }
+    for (i, text) in component.texts.iter().enumerate() {
+        bw.write_u8(5)?;
+        write_text(&mut bw, text, i as i32)?;
+    }
+    for fill in &component.fills {
+        bw.write_u8(6)?;
+        write_fill(&mut bw, fill)?;
+    }
+    for region in &component.regions {
+        bw.write_u8(11)?;
+        write_region(&mut bw, region)?;
+    }
+    for body in &component.component_bodies {
+        bw.write_u8(12)?;
+        write_component_body(&mut bw, body)?;
+    }
+
+    cf.write_stream(format!("{section_key}/Data"), &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_library_models(cf: &mut CompoundFile, library: &Library) -> Result<()> {
+    cf.create_storage("Library/Models")?;
+    write_storage_header(cf, "Library/Models/Header", library.models.len() as i32)?;
+
+    let mut data = Vec::<u8>::new();
+    for model in &library.models {
+        let param_str = format!(
+            "EMBED={}|MODELSOURCE={}|ID={}|ROTX={:.3}|ROTY={:.3}|ROTZ={:.3}|DZ={}|CHECKSUM={}|NAME={}",
+            if model.is_embedded { "TRUE" } else { "FALSE" },
+            model.model_source,
+            format_model_id(&model.id),
+            model.rotation_x,
+            model.rotation_y,
+            model.rotation_z,
+            model.dz,
+            model.checksum,
+            model.name,
+        );
+        let mut bytes = encoding::encode(&param_str);
+        bytes.push(0);
+        let len = bytes.len() as i32;
+        data.extend_from_slice(&len.to_le_bytes());
+        data.extend_from_slice(&bytes);
+    }
+    cf.write_stream("Library/Models/Data", &data)?;
+
+    for (i, model) in library.models.iter().enumerate() {
+        let payload = if model.step_data.is_empty() {
+            Vec::new()
+        } else {
+            let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
+            encoder.write_all(model.step_data.as_bytes())?;
+            encoder.finish()?
+        };
+        cf.write_stream(format!("Library/Models/{i}"), &payload)?;
+    }
+    Ok(())
+}
+
+fn write_additional_streams(
+    cf: &mut CompoundFile,
+    base: &str,
+    streams: &BTreeMap<String, Vec<u8>>,
+) -> Result<()> {
+    for (key, data) in streams {
+        let path = if base.is_empty() {
+            key.clone()
+        } else {
+            format!("{base}/{key}")
+        };
+        cf.write_stream(path, data)?;
+    }
+    Ok(())
+}
+
+fn write_default_root_stubs(cf: &mut CompoundFile, library: &Library) -> Result<()> {
+    if !contains_root_stream(library, "FileVersionInfo/Header") {
+        cf.write_stream("FileVersionInfo/Header", &u32_le_bytes(1))?;
+    }
+    if !contains_root_stream(library, "FileVersionInfo/Data") {
+        cf.write_stream("FileVersionInfo/Data", &default_file_version_info_data())?;
+    }
+    Ok(())
+}
+
+fn write_default_library_stubs(cf: &mut CompoundFile, library: &Library) -> Result<()> {
+    if !contains_library_stream(library, "EmbeddedFonts") {
+        cf.write_stream("Library/EmbeddedFonts", &u32_le_bytes(0))?;
+    }
+    if !contains_library_stream(library, "LayerKindMapping/Header") {
+        cf.write_stream("Library/LayerKindMapping/Header", &u32_le_bytes(1))?;
+    }
+    if !contains_library_stream(library, "LayerKindMapping/Data") {
+        cf.write_stream(
+            "Library/LayerKindMapping/Data",
+            &default_layer_kind_mapping_data(),
+        )?;
+    }
+    if !contains_library_stream(library, "ModelsNoEmbed/Header") {
+        cf.write_stream("Library/ModelsNoEmbed/Header", &u32_le_bytes(0))?;
+    }
+    if !contains_library_stream(library, "ModelsNoEmbed/Data") {
+        cf.write_stream("Library/ModelsNoEmbed/Data", &[])?;
+    }
+    if !contains_library_stream(library, "PadViaLibrary/Header") {
+        cf.write_stream("Library/PadViaLibrary/Header", &u32_le_bytes(0))?;
+    }
+    if !contains_library_stream(library, "PadViaLibrary/Data") {
+        cf.write_stream(
+            "Library/PadViaLibrary/Data",
+            &default_pad_via_library_data(),
+        )?;
+    }
+    if !contains_library_stream(library, "Textures/Header") {
+        cf.write_stream("Library/Textures/Header", &u32_le_bytes(0))?;
+    }
+    if !contains_library_stream(library, "Textures/Data") {
+        cf.write_stream("Library/Textures/Data", &[])?;
+    }
+    if !contains_library_stream(library, "ComponentParamsTOC/Header") {
+        cf.write_stream(
+            "Library/ComponentParamsTOC/Header",
+            &u32_le_bytes(library.components.len() as u32),
+        )?;
+    }
+    if !contains_library_stream(library, "ComponentParamsTOC/Data") {
+        cf.write_stream(
+            "Library/ComponentParamsTOC/Data",
+            &default_component_params_toc_data(library),
+        )?;
+    }
+    Ok(())
+}
+
+fn default_component_params_toc_data(library: &Library) -> Vec<u8> {
+    let mut data = Vec::<u8>::new();
+    for component in &library.components {
+        let name = component.name.replace('|', "/");
+        let pad_count = component.pads.len();
+        let height_mil = component.height.to_mils();
+        let description = component
+            .description
+            .clone()
+            .unwrap_or_default()
+            .replace('|', "/");
+        let body = format!(
+            "Name={name}|Pad Count={pad_count}|Height={height_mil:.4}|Description={description}\r\n",
+        );
+        let mut body_bytes = body.into_bytes();
+        body_bytes.push(0); // C-string terminator
+        let len = body_bytes.len() as u32;
+        data.extend_from_slice(&len.to_le_bytes());
+        data.extend_from_slice(&body_bytes);
+    }
+    data
+}
+
+fn contains_root_stream(library: &Library, key: &str) -> bool {
+    library.additional_root_streams.contains_key(key)
+}
+
+fn contains_library_stream(library: &Library, key: &str) -> bool {
+    library.additional_library_streams.contains_key(key)
+}
+
+fn u32_le_bytes(n: u32) -> [u8; 4] {
+    n.to_le_bytes()
+}
+
+fn default_layer_kind_mapping_data() -> Vec<u8> {
+    let mut out = Vec::with_capacity(20);
+    out.extend_from_slice(&8u32.to_le_bytes());
+    out.extend_from_slice(&[0x31, 0x00, 0x2E, 0x00, 0x30, 0x00, 0x00, 0x00]);
+    out.extend_from_slice(&[0u8; 8]);
+    out
+}
+
+fn default_pad_via_library_data() -> Vec<u8> {
+    let body = b"|PADVIALIBRARY.LIBRARYID={4F499044-D65D-4DA6-9273-7355F5C6609C}\
+|PADVIALIBRARY.LIBRARYNAME=<Local>\
+|PADVIALIBRARY.DISPLAYUNITS=1\0";
+    let mut out = Vec::with_capacity(4 + body.len());
+    out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+    out.extend_from_slice(body);
+    out
+}
+
+fn default_file_version_info_data() -> Vec<u8> {
+    // Migration-history list ending at Release 20.0. An outdated terminal
+    // entry triggers Altium's "File in Newer Format" report on every open.
+    const ENTRIES: &[(&str, &str, &str)] = &[
+        ("6.3", "<b>CAUTION</b> - Via connections to both hatched and solid signal layer polygons are now controlled by the polygon connect style rule. Re-pouring polygons may result in physical copper differences.", ""),
+        ("6.6", "", "<b>CAUTION</b> - File contains Rounded Rectangular pads not supported by this version of the software. These pads have been converted to the Round shape."),
+        ("6.8", "", "<b>CAUTION</b> - File contains one or more Solid Regions containing boundary arcs. These arcs have been converted to linear segments that approximate the arc."),
+        ("6.8", "", "<b>CAUTION</b> - File contains one or more Component Bodies containing boundary arcs. These arcs have been converted to linear segments that approximate the arc."),
+        ("6.8", "", "<b>CAUTION</b> - File contains one or more Matched Length Rules. Rule atributes have been changed. Rule does not support pattern related attributes (amplitude, gap) anymore they are treated as tool attibutes instead.Rule is enhanced with subscoping attributes - allowing checking between nets in the same differential pair, between differential pairs as well as other electrical objects"),
+        ("6.8", "", "<b>CAUTION</b> - Board cutout objects introduced. Be aware that if your design contains board cutouts, they cannot be read in previous versions."),
+        ("6.8", "", "<b>CAUTION</b> - New type of text - barcode text was introduced. Be aware that if your design contains barcodes they cannot be read in previous versions."),
+        ("6.8", "", "<b>CAUTION</b> - Polygon/Layer dependent connect style rule for pads and vias was introduced. First scope should define pads/vias while 2nd scope should define polygons.Second scope is not readable in versions prior to 6.8 and is assumed to be 'All'."),
+        ("6.9", "", "<b>CAUTION</b> - File contains one or more Component Bodies containing embedded STEP models. These models have be discarded."),
+        ("6.9", "", "<b>CAUTION</b> - File contains one or more Components with pads with Pad Jumper IDs. The pads Pad Jumper ID fields have been discarded."),
+        ("7.0", "", "<b>CAUTION</b> - File may contain Component Bodies with linked STEP models. These models will be discarded."),
+        ("Winter 09", "", "<b>CAUTION</b> - Vias support varying diameters across layerstack. If this feature is used in design, extra values will be discarded."),
+        ("Winter 09", "", "<b>CAUTION</b> - File may contain pads with hole offsets. Hole offset information will be discarded."),
+        ("Winter 09", "", "<b>CAUTION</b> - File contains new manufacturing rules. Hole To Hole clearance, Minimum solder mask sliver, Silkscreen Over Exposed Copper and Silkscreen To Silkscreen Clearance rules were introduced in Altium Designer Winter 09.These rules will be discarded."),
+        ("Winter 09", "", "<b>CAUTION</b> - 3D models now support texturing.If used in design these textures will be discarded."),
+        ("Summer 09", "<b>CAUTION</b> - File contains old violation objects. These violations are no longer supported & will not be loaded. Please run DRC after opening this file in order to refresh the violations.", "<b>CAUTION</b> - File contains new custom violations that replaced the old violation objects. These violations were introduced in Altium Designer Summer 09. The new custom violations will be discarded."),
+        ("Summer 09", "", "<b>CAUTION</b> - Support was added for 32 Mechanical Layers. Objects on mechanical layers beyond 16 have been moved to Mechanical Layer 16."),
+        ("Summer 09", "<b>CAUTION</b> - Existing testpoint rules and settings are used as fabrication testpoint information.", "<b>CAUTION</b> - File contains assembly testpoint rules and/or settings.  Assembly testpoint information will be discarded."),
+        ("Release 10", "", "<b>CAUTION</b> - New Custom Grids and Guides were introduced. Be aware that your design might contain Custom Grids and Guides that cannot be read in previous versions. "),
+        ("Release 10", "", "<b>CAUTION</b> - New Structured Clusters were introduced. Be aware that your design might contain Structured Clusters that cannot be read in previous versions. "),
+        ("Release 10", "", "<b>CAUTION</b> - New PCB 3D Movie Manager was introduced. Be aware that your design might contain 3D PCB movie that cannot be read in previous versions. "),
+        ("Release 10 update 1", "", "<b>CAUTION</b> - New Clearance Rule subscopes targeting differential pairs  were introduced. Be aware that your design might contain Clearance Rules using those subscopes that cannot be read in previous versions. "),
+        ("Release 10 update 15", "", "<b>CAUTION</b> - Support of Solder Mask and Paste Mask expansions for Tracks, Arcs, Fills and Regions was introduced. Be aware that your design might contain Solder Mask and Paste Mask expansions for these types of primitives that cannot be read in the version of Altium Designer you are currently using. "),
+        ("Release 12", "<b>CAUTION</b> - Air Gap Width previously controlled by Clearance rule is now controlled by Polygon Connect Style rule's newly introduced Air Gap Width (set to default value). Suggest reviewing each Polygon Connect Style rule's Air Gap Width attribute for correctness.", "<b>CAUTION</b> - Air Gap Width previously controlled by Clearance rule is now controlled by Polygon Connect Style rule's newly introduced Air Gap Width (set to default value). Suggest reviewing each Polygon Connect Style rule's Air Gap Width attribute for correctness."),
+        ("Release 13", "<b>CAUTION</b> - Silkscreen Over Component Pads Rules are converted to Silk To Solder Mask Clearance Rules. Suggest examining rule scopes for accuracy.", "<b>CAUTION</b> - Silk To Solder Mask Clearance Rules are converted to Silkscreen Over Component Pads Rules."),
+        ("Release 14", "", "<b>CAUTION</b> - The Differential Pairs Routing rule added support for control of the width. Be aware that these widths must be manually entered as Width rules in this version."),
+        ("Release 15", "", "<b>CAUTION</b> - Support of separate solder masks for top & bottom of pads added."),
+        ("Release 15.1", "", "<b>CAUTION</b> - Support Multi-line PCB Text added."),
+        ("Release 16.0", "", "<b>CAUTION</b> - Pad/Via hole size tolerance value added."),
+        ("Release 17.0", "", "<b>CAUTION</b> - Component parameters added."),
+        ("Release 17.0", "", "<b>CAUTION</b> - Support of backdrilling"),
+        ("Release 17.1", "", "<b>CAUTION</b> - Support of waived violations"),
+        ("Release 17.1", "", "<b>CAUTION</b> - Support of object specific keepouts"),
+        ("Release 20.0", "", ""),
+    ];
+    fn codepoints(s: &str) -> String {
+        s.chars()
+            .map(|c| (c as u32).to_string())
+            .collect::<Vec<_>>()
+            .join(",")
+    }
+    let mut body = String::new();
+    body.push_str(&format!("|COUNT={}", ENTRIES.len()));
+    for (i, (ver, fwd, bk)) in ENTRIES.iter().enumerate() {
+        body.push_str(&format!("|VER{i}={}", codepoints(ver)));
+        body.push_str(&format!("|FWDMSG{i}={}", codepoints(fwd)));
+        body.push_str(&format!("|BKMSG{i}={}", codepoints(bk)));
+    }
+    let mut bytes = body.into_bytes();
+    bytes.push(0);
+    let mut out = Vec::with_capacity(4 + bytes.len());
+    out.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(&bytes);
+    out
+}
+
+fn write_c_string_param_block<W: Write + Seek>(
+    bw: &mut BinaryWriter<W>,
+    params: &ParameterMap,
+) -> Result<()> {
+    bw.write_block(|w| {
+        let mut bytes = Vec::<u8>::new();
+        crate::parameter::write_block_bytes(&mut bytes, params, '|');
+        w.write_bytes(&bytes)?;
+        w.write_u8(0)?;
+        Ok(())
+    })
+}
+
+// Region and ComponentBody nested strings start at the first key, not a pipe.
+fn write_nested_param_block<W: Write + Seek>(bw: &mut BinaryWriter<W>, params: &ParameterMap) -> Result<()> {
+    bw.write_block(|w| {
+        let mut bytes=Vec::new();
+        crate::parameter::write_block_bytes(&mut bytes, params, '|');
+        if bytes.first()==Some(&b'|') { bytes.remove(0); }
+        w.write_bytes(&bytes)?;
+        w.write_u8(0)?;
+        Ok(())
+    })
+}
+
+// Primitive writers
+
+fn write_arc<W: Write + Seek>(bw: &mut BinaryWriter<W>, arc: &Arc) -> Result<()> {
+    bw.write_block(|w| {
+        let flags = PrimitiveFlags {
+            is_locked: arc.is_locked,
+            is_tenting_top: arc.is_tenting_top,
+            is_tenting_bottom: arc.is_tenting_bottom,
+            is_keepout: arc.is_keepout,
+        }
+        .encode();
+        write_common_prefix_full(w, arc.layer as u8, flags, arc.net_index as i32, -1)?;
+        write_coord_point(w, arc.center)?;
+        w.write_i32(arc.radius.to_raw())?;
+        w.write_f64(arc.start_angle)?;
+        w.write_f64(arc.end_angle)?;
+        w.write_i32(arc.width.to_raw())?;
+        Ok(())
+    })
+}
+
+fn write_pad<W: Write + Seek>(bw: &mut BinaryWriter<W>, pad: &Pad) -> Result<()> {
+    bw.write_pascal_string_block(pad.designator.as_deref().unwrap_or(""))?;
+    bw.write_block(|w| {
+        w.write_bytes(&pad.reserved_block_after_designator)?;
+        Ok(())
+    })?;
+    bw.write_pascal_string_block(&pad.net_string_block)?;
+    bw.write_block(|w| {
+        w.write_bytes(&pad.reserved_block_after_net_string)?;
+        Ok(())
+    })?;
+
+    // Pad main block is 202 bytes; the trailing bytes after our typed
+    // fields are zero-padded. Writing a shorter block desyncs subsequent
+    // records in Pads6.
+    const PAD_MAIN_BLOCK_TOTAL: usize = 202;
+    bw.write_block(|w| {
+        let start = w.position()?;
+        let flags = PrimitiveFlags {
+            is_locked: pad.is_locked,
+            is_tenting_top: pad.is_tenting_top,
+            is_tenting_bottom: pad.is_tenting_bottom,
+            is_keepout: pad.is_keepout,
+        }
+        .encode();
+        write_common_prefix_full(
+            w,
+            pad.layer as u8,
+            flags,
+            pad.net_index as i32,
+            pad.component_index,
+        )?;
+        write_coord_point(w, pad.location)?;
+        write_coord_point(w, pad.size_top)?;
+        write_coord_point(w, pad.size_middle)?;
+        write_coord_point(w, pad.size_bottom)?;
+        w.write_i32(pad.hole_size.to_raw())?;
+        w.write_u8(i32::from(pad.shape_top) as u8)?;
+        w.write_u8(i32::from(pad.shape_middle) as u8)?;
+        w.write_u8(i32::from(pad.shape_bottom) as u8)?;
+        w.write_f64(pad.rotation)?;
+        w.write_u8(if pad.is_plated { 1 } else { 0 })?;
+        w.write_u8(0)?;
+        w.write_u8(pad.mode as u8)?;
+        w.write_u8(pad.power_plane_connect_style as u8)?;
+        w.write_i32(pad.relief_air_gap.to_raw())?;
+        w.write_i32(pad.relief_conductor_width.to_raw())?;
+        w.write_i16(pad.relief_entries as i16)?;
+        w.write_i32(pad.power_plane_clearance.to_raw())?;
+        w.write_i32(pad.power_plane_relief_expansion.to_raw())?;
+        w.write_i32(0)?;
+        w.write_i32(pad.paste_mask_expansion.to_raw())?;
+        w.write_i32(pad.solder_mask_expansion.to_raw())?;
+        w.write_fill(0, 7)?;
+        w.write_u8(if pad.paste_mask_expansion.to_raw() != 0 {
+            2
+        } else {
+            0
+        })?;
+        w.write_u8(if pad.solder_mask_expansion.to_raw() != 0 {
+            2
+        } else {
+            0
+        })?;
+        w.write_u8(pad.drill_type as u8)?;
+        w.write_i16(0)?;
+        w.write_i32(0)?;
+        w.write_i16(pad.jumper_id as i16)?;
+        w.write_i16(0)?;
+        let written = (w.position()? - start) as usize;
+        if written < PAD_MAIN_BLOCK_TOTAL {
+            w.write_fill(0, PAD_MAIN_BLOCK_TOTAL - written)?;
+        }
+        Ok(())
+    })?;
+
+    // Always emit the 596-byte size/shape block — Altium reads it on
+    // every pad regardless of `mode`, and omitting it desyncs Pads6.
+    bw.write_block(|w| {
+        for v in &pad.layer_x_sizes {
+            w.write_i32(*v)?;
+        }
+        for v in &pad.layer_y_sizes {
+            w.write_i32(*v)?;
+        }
+        for v in &pad.internal_layer_shapes {
+            w.write_u8(*v)?;
+        }
+        w.write_u8(0)?;
+        w.write_u8(i32::from(pad.hole_type) as u8)?;
+        w.write_i32(pad.hole_slot_length)?;
+        w.write_f64(pad.hole_rotation)?;
+        for v in &pad.offset_x_from_hole_center {
+            w.write_i32(*v)?;
+        }
+        for v in &pad.offset_y_from_hole_center {
+            w.write_i32(*v)?;
+        }
+        w.write_u8(pad.has_rounded_rect_byte)?;
+        for v in &pad.per_layer_shapes {
+            w.write_u8(*v)?;
+        }
+        for v in &pad.per_layer_corner_radii {
+            w.write_u8(*v)?;
+        }
+        Ok(())
+    })?;
+    Ok(())
+}
+
+fn write_via<W: Write + Seek>(bw: &mut BinaryWriter<W>, via: &Via) -> Result<()> {
+    // Via record block is 360 bytes; trailing bytes after our typed
+    // fields are zero-padded. A shorter block desyncs Vias6.
+    const VIA_BLOCK_TOTAL: usize = 360;
+    bw.write_block(|w| {
+        let start = w.position()?;
+        let flags = PrimitiveFlags {
+            is_locked: via.is_locked,
+            is_tenting_top: via.is_tenting_top,
+            is_tenting_bottom: via.is_tenting_bottom,
+            is_keepout: via.is_keepout,
+        }
+        .encode();
+        write_common_prefix_full(
+            w,
+            via.layer as u8,
+            flags,
+            via.net_index as i32,
+            via.component_index,
+        )?;
+        write_coord_point(w, via.location)?;
+        w.write_i32(via.diameter.to_raw())?;
+        w.write_i32(via.hole_size.to_raw())?;
+        w.write_u8(via.start_layer as u8)?;
+        w.write_u8(via.end_layer as u8)?;
+        w.write_u8(0)?;
+        w.write_i32(via.thermal_relief_air_gap.to_raw())?;
+        w.write_u8(via.thermal_relief_conductors as u8)?;
+        w.write_u8(0)?;
+        w.write_i32(via.thermal_relief_conductors_width.to_raw())?;
+        w.write_i32(via.power_plane_clearance.to_raw())?;
+        w.write_i32(via.power_plane_relief_expansion.to_raw())?;
+        w.write_i32(0)?;
+        w.write_i32(via.solder_mask_expansion.to_raw())?;
+        w.write_bytes(&via.reserved_block_8)?;
+        w.write_u8(if via.solder_mask_expansion_manual {
+            2
+        } else {
+            0
+        })?;
+        w.write_u8(via.reserved_byte_after_mask_flag)?;
+        w.write_i16(0)?;
+        w.write_i32(0)?;
+        w.write_u8(via.mode as u8)?;
+        for v in &via.diameters {
+            w.write_i32(v.to_raw())?;
+        }
+        w.write_i16(via.trailing_reserved_i16)?;
+        w.write_i32(via.trailing_reserved_i32)?;
+        let written = (w.position()? - start) as usize;
+        if written < VIA_BLOCK_TOTAL {
+            w.write_fill(0, VIA_BLOCK_TOTAL - written)?;
+        }
+        Ok(())
+    })
+}
+
+fn write_track<W: Write + Seek>(bw: &mut BinaryWriter<W>, track: &Track) -> Result<()> {
+    bw.write_block(|w| {
+        let flags = PrimitiveFlags {
+            is_locked: track.is_locked,
+            is_tenting_top: track.is_tenting_top,
+            is_tenting_bottom: track.is_tenting_bottom,
+            is_keepout: track.is_keepout,
+        }
+        .encode();
+        // Net + component indexes go in the common prefix. Altium ignores
+        // the trailing copies some old writers (and our old reader) wrote.
+        write_common_prefix_full(
+            w,
+            track.layer as u8,
+            flags,
+            track.net_index as i32,
+            track.component_index as i32,
+        )?;
+        write_coord_point(w, track.start)?;
+        write_coord_point(w, track.end)?;
+        w.write_i32(track.width.to_raw())?;
+        Ok(())
+    })
+}
+
+fn write_text<W: Write + Seek>(
+    bw: &mut BinaryWriter<W>,
+    text: &Text,
+    wide_string_index: i32,
+) -> Result<()> {
+    bw.write_block(|w| {
+        let flags = PrimitiveFlags {
+            is_locked: text.is_locked,
+            is_tenting_top: text.is_tenting_top,
+            is_tenting_bottom: text.is_tenting_bottom,
+            is_keepout: text.is_keepout,
+        }
+        .encode();
+        write_common_prefix_full(
+            w,
+            text.layer as u8,
+            flags,
+            text.net_index as i32,
+            text.component_index,
+        )?;
+        write_coord_point(w, text.location)?;
+        w.write_i32(text.height.to_raw())?;
+        w.write_i16(i32::from(text.stroke_font) as i16)?;
+        w.write_f64(text.rotation)?;
+        w.write_u8(if text.is_mirrored { 1 } else { 0 })?;
+        w.write_i32(text.stroke_width.to_raw())?;
+
+        w.write_i16(0)?;
+        w.write_u8(0)?;
+        w.write_u8(i32::from(text.text_kind) as u8)?;
+        w.write_u8(if text.font_bold { 1 } else { 0 })?;
+        w.write_u8(if text.font_italic { 1 } else { 0 })?;
+        w.write_font_name(text.font_name.as_deref().unwrap_or("Arial"))?;
+        w.write_i32(text.barcode_lr_margin.to_raw())?;
+        w.write_i32(text.barcode_tb_margin.to_raw())?;
+        w.write_i32(0)?;
+        w.write_i32(0)?;
+        w.write_u8(0)?;
+        w.write_u8(0)?;
+        w.write_i32(0)?;
+        w.write_i16(0)?;
+        w.write_i32(1)?;
+        w.write_i32(0)?;
+        w.write_u8(if text.is_inverted { 1 } else { 0 })?;
+        w.write_i32(text.inverted_border.to_raw())?;
+        w.write_i32(wide_string_index)?;
+        w.write_i32(0)?;
+        w.write_u8(if text.use_inverted_rectangle { 1 } else { 0 })?;
+        w.write_i32(text.inverted_rect_width.to_raw())?;
+        w.write_i32(text.inverted_rect_height.to_raw())?;
+        w.write_u8(i32::from(text.inverted_rect_justification) as u8)?;
+        w.write_i32(text.inverted_rect_text_offset.to_raw())?;
+        Ok(())
+    })?;
+    bw.write_pascal_string_block(&text.text)
+}
+
+fn write_fill<W: Write + Seek>(bw: &mut BinaryWriter<W>, fill: &Fill) -> Result<()> {
+    bw.write_block(|w| {
+        let flags = PrimitiveFlags {
+            is_locked: fill.is_locked,
+            is_tenting_top: fill.is_tenting_top,
+            is_tenting_bottom: fill.is_tenting_bottom,
+            is_keepout: fill.is_keepout,
+        }
+        .encode();
+        write_common_prefix_full(w, fill.layer as u8, flags, fill.net_index as i32, -1)?;
+        write_coord_point(w, fill.corner1)?;
+        write_coord_point(w, fill.corner2)?;
+        w.write_f64(fill.rotation)?;
+        Ok(())
+    })
+}
+
+fn write_region<W: Write + Seek>(bw: &mut BinaryWriter<W>, region: &Region) -> Result<()> {
+    bw.write_block(|w| {
+        let flags = PrimitiveFlags {
+            is_locked: region.is_locked,
+            is_tenting_top: region.is_tenting_top,
+            is_tenting_bottom: region.is_tenting_bottom,
+            is_keepout: region.is_keepout,
+        }
+        .encode();
+        write_common_prefix_full(
+            w,
+            region.layer as u8,
+            flags,
+            region.net_index as i32,
+            region.component_index,
+        )?;
+        w.write_u32(0)?;
+        w.write_u8(0)?;
+
+        let mut params = ParameterMap::new();
+        params.insert("V7_LAYER", layer_byte_to_name(region.layer as u8));
+        params.insert("NAME", region.name.clone().unwrap_or_else(|| " ".into()));
+        params.insert("KIND", region.kind.to_string());
+        params.insert("SUBPOLYINDEX", region.sub_poly_index.to_string());
+        params.insert("UNIONINDEX", region.union_index.to_string());
+        params.insert(
+            "ARCRESOLUTION",
+            format!(
+                "{}mil",
+                if region.arc_resolution == 0.0 {
+                    0.5
+                } else {
+                    region.arc_resolution
+                }
+            ),
+        );
+        params.insert(
+            "ISSHAPEBASED",
+            if region.is_shape_based { "TRUE" } else { "FALSE" },
+        );
+        if let Some(net) = &region.net {
+            params.insert("NET", net.clone());
+        }
+        if let Some(uid) = &region.unique_id {
+            params.insert("UNIQUEID", uid.clone());
+        }
+        // Mask/relief/power-plane numeric parameters: only emit when
+        // the field is non-default so we don't pollute regions that
+        // never carried them in the source file.
+        if region.paste_mask_expansion.to_raw() != 0 {
+            params.insert(
+                "PASTEMASKEXPANSION",
+                region.paste_mask_expansion.to_raw().to_string(),
+            );
+        }
+        if region.solder_mask_expansion.to_raw() != 0 {
+            params.insert(
+                "SOLDERMASKEXPANSION",
+                region.solder_mask_expansion.to_raw().to_string(),
+            );
+        }
+        if region.cavity_height.to_raw() != 0 {
+            params.insert("CAVITYHEIGHT", region.cavity_height.to_raw().to_string());
+        }
+        if region.power_plane_clearance.to_raw() != 0 {
+            params.insert(
+                "POWERPLANECLEARANCE",
+                region.power_plane_clearance.to_raw().to_string(),
+            );
+        }
+        if region.power_plane_connect_style != 0 {
+            params.insert(
+                "POWERPLANECONNECTSTYLE",
+                region.power_plane_connect_style.to_string(),
+            );
+        }
+        if region.power_plane_relief_expansion.to_raw() != 0 {
+            params.insert(
+                "POWERPLANERELIEFEXPANSION",
+                region.power_plane_relief_expansion.to_raw().to_string(),
+            );
+        }
+        if region.relief_air_gap.to_raw() != 0 {
+            params.insert("RELIEFAIRGAP", region.relief_air_gap.to_raw().to_string());
+        }
+        if region.relief_conductor_width.to_raw() != 0 {
+            params.insert(
+                "RELIEFCONDUCTORWIDTH",
+                region.relief_conductor_width.to_raw().to_string(),
+            );
+        }
+        if region.relief_entries != 0 {
+            params.insert("RELIEFENTRIES", region.relief_entries.to_string());
+        }
+        if region.hole_count != 0 {
+            params.insert("HOLECOUNT", region.hole_count.to_string());
+        }
+        if region.total_vertex_count != 0 {
+            params.insert("TOTALVERTEXCOUNT", region.total_vertex_count.to_string());
+        }
+        if region.area != 0 {
+            params.insert("AREA", region.area.to_string());
+        }
+        if region.arc_approximation.to_raw() != 0 {
+            params.insert(
+                "ARCAPPROXIMATION",
+                region.arc_approximation.to_raw().to_string(),
+            );
+        }
+        // Booleans: `enabled` defaults to true, so emit only when false
+        // (matches the "absent means default" file convention). The
+        // rest default to false and emit only when true.
+        if !region.enabled {
+            params.insert("ENABLED", "FALSE");
+        }
+        if region.user_routed {
+            params.insert("USERROUTED", "TRUE");
+        }
+        if region.is_free_primitive {
+            params.insert("ISFREEPRIM", "TRUE");
+        }
+        if region.is_electrical_prim {
+            params.insert("ISELECTRICALPRIM", "TRUE");
+        }
+        if region.is_pre_route {
+            params.insert("ISPREROUTE", "TRUE");
+        }
+        if region.tear_drop {
+            params.insert("TEARDROP", "TRUE");
+        }
+        if region.polygon_outline {
+            params.insert("POLYGONOUTLINE", "TRUE");
+        }
+        if region.is_tenting {
+            params.insert("ISTENTING", "TRUE");
+        }
+        if region.is_testpoint_top {
+            params.insert("ISTESTPOINTTOP", "TRUE");
+        }
+        if region.is_testpoint_bottom {
+            params.insert("ISTESTPOINTBOTTOM", "TRUE");
+        }
+        if region.is_assy_testpoint_top {
+            params.insert("ISASSEMBLYTESTPOINTTOP", "TRUE");
+        }
+        if region.is_assy_testpoint_bottom {
+            params.insert("ISASSEMBLYTESTPOINTBOTTOM", "TRUE");
+        }
+        if region.is_hidden {
+            params.insert("ISHIDDEN", "TRUE");
+        }
+        if region.allow_global_edit {
+            params.insert("ALLOWGLOBALEDIT", "TRUE");
+        }
+        if region.moveable {
+            params.insert("MOVEABLE", "TRUE");
+        }
+        if region.is_simple_region {
+            params.insert("ISSIMPLEREGION", "TRUE");
+        }
+        if region.virtual_cutout {
+            params.insert("VIRTUALCUTOUT", "TRUE");
+        }
+        if let Some(extra) = &region.additional_parameters {
+            for (k, v) in extra {
+                params.insert(k, v.clone());
+            }
+        }
+        write_nested_param_block(w, &params)?;
+
+        w.write_u32(region.outline.len() as u32)?;
+        for pt in &region.outline {
+            w.write_f64(pt.x.to_raw() as f64)?;
+            w.write_f64(pt.y.to_raw() as f64)?;
+        }
+        Ok(())
+    })
+}
+
+fn write_component_body<W: Write + Seek>(
+    bw: &mut BinaryWriter<W>,
+    body: &ComponentBody,
+) -> Result<()> {
+    bw.write_block(|w| {
+        let flags = PrimitiveFlags {
+            is_locked: body.is_locked,
+            is_tenting_top: body.is_tenting_top,
+            is_tenting_bottom: body.is_tenting_bottom,
+            is_keepout: body.is_keepout,
+        }
+        .encode();
+        let layer = layer_name_to_byte(&body.layer_name);
+        write_common_prefix_full(w, layer, flags, body.net_index as i32, body.component_index)?;
+        w.write_u32(0)?;
+        w.write_u8(0)?;
+
+        let mut params = ParameterMap::new();
+        params.insert("V7_LAYER", body.layer_name.clone());
+        params.insert("NAME", body.name.clone().unwrap_or_else(|| " ".to_string()));
+        params.insert("KIND", body.kind.to_string());
+        params.insert("SUBPOLYINDEX", body.sub_poly_index.to_string());
+        params.insert("UNIONINDEX", body.union_index.to_string());
+        params.insert(
+            "ARCRESOLUTION",
+            format!(
+                "{}mil",
+                if body.arc_resolution == 0.0 {
+                    0.5
+                } else {
+                    body.arc_resolution
+                }
+            ),
+        );
+        params.insert(
+            "ISSHAPEBASED",
+            if body.is_shape_based { "TRUE" } else { "FALSE" },
+        );
+        params.insert("CAVITYHEIGHT", body.cavity_height.to_string());
+        params.insert("STANDOFFHEIGHT", body.standoff_height.to_string());
+        params.insert("OVERALLHEIGHT", body.overall_height.to_string());
+        params.insert("BODYPROJECTION", body.body_projection.to_string());
+        params.insert("BODYCOLOR3D", body.body_color_3d.to_string());
+        params.insert("BODYOPACITY3D", format!("{:.3}", body.body_opacity_3d));
+        if let Some(id) = &body.identifier {
+            params.insert("IDENTIFIER", id.clone());
+        }
+        params.insert(
+            "MODELID",
+            format_model_id(body.model_id.as_deref().unwrap_or_default()),
+        );
+        params.insert("MODEL.CHECKSUM", body.model_checksum.to_string());
+        params.insert(
+            "MODEL.EMBED",
+            if body.model_embed { "TRUE" } else { "FALSE" },
+        );
+        params.insert("MODEL.NAME", body.model_name.clone().unwrap_or_default());
+        params.insert("MODEL.2D.X", body.model_2d_location.x.to_string());
+        params.insert("MODEL.2D.Y", body.model_2d_location.y.to_string());
+        params.insert(
+            "MODEL.2D.ROTATION",
+            format!("{:.3}", body.model_2d_rotation),
+        );
+        params.insert("MODEL.3D.ROTX", format!("{:.3}", body.model_3d_rot_x));
+        params.insert("MODEL.3D.ROTY", format!("{:.3}", body.model_3d_rot_y));
+        params.insert("MODEL.3D.ROTZ", format!("{:.3}", body.model_3d_rot_z));
+        params.insert("MODEL.3D.DZ", body.model_3d_dz.to_string());
+        params.insert("MODEL.MODELTYPE", body.model_type.to_string());
+        params.insert(
+            "MODEL.MODELSOURCE",
+            body.model_source.clone().unwrap_or_default(),
+        );
+        if let Some(t) = &body.texture {
+            params.insert("TEXTURE", t.clone());
+        }
+        // additional_parameters override anything above when present.
+        if let Some(extra) = &body.additional_parameters {
+            for (k, v) in extra {
+                params.insert(k, v.clone());
+            }
+        }
+        write_nested_param_block(w, &params)?;
+
+        w.write_u32(body.outline.len() as u32)?;
+        for pt in &body.outline {
+            w.write_f64(pt.x.to_raw() as f64)?;
+            w.write_f64(pt.y.to_raw() as f64)?;
+        }
+        Ok(())
+    })
+}
+
+/// Normalise a UUID into Altium's canonical `{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}`
+/// form. Non-UUID inputs are returned unchanged.
+fn format_model_id(raw: &str) -> String {
+    let trimmed = raw.trim().trim_start_matches('{').trim_end_matches('}');
+    let hex_only: String = trimmed.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    if hex_only.len() != 32 {
+        return raw.to_string();
+    }
+    let h = hex_only.to_ascii_uppercase();
+    format!(
+        "{{{}-{}-{}-{}-{}}}",
+        &h[0..8],
+        &h[8..12],
+        &h[12..16],
+        &h[16..20],
+        &h[20..32]
+    )
+}
+
+// Document writer (PcbDoc)
+
+impl Document {
+    /// Serialise this document to a `.PcbDoc` byte buffer.
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut cf = CompoundFile::create()?;
+
+        let mut doc = self.clone();
+        resolve_primitive_net_indexes(&mut doc);
+
+        // Entries consumed from this map as we go land in their canonical
+        // OLE position; the trailing `write_additional_streams` call
+        // catches anything that didn't.
+        let mut leftover = doc.additional_streams.clone();
+
+        write_doc_file_headers(&mut cf, &doc, &mut leftover)?;
+        write_doc_storages_in_canonical_order(&mut cf, &doc, &mut leftover)?;
+        write_additional_streams(&mut cf, "", &leftover)?;
+
+        cf.into_bytes()
+    }
+
+    /// Write to disk as a `.PcbDoc`.
+    pub async fn write(&self, path: impl AsRef<Path>) -> Result<()> {
+        let bytes = self.to_bytes()?;
+        tokio::fs::write(path, bytes).await?;
+        Ok(())
+    }
+
+    /// Write to any `AsyncWrite`.
+    pub async fn write_async<W>(&self, mut writer: W) -> Result<()>
+    where
+        W: AsyncWrite + Unpin,
+    {
+        use tokio::io::AsyncWriteExt;
+        let bytes = self.to_bytes()?;
+        writer.write_all(&bytes).await?;
+        writer.flush().await?;
+        Ok(())
+    }
+}
+
+/// Fill each primitive's `net_index` from its `net` name. Indexing is
+/// 1-based on disk; `0` means "no net", and unknown names collapse to `0`.
+fn resolve_primitive_net_indexes(document: &mut Document) {
+    let lookup: std::collections::HashMap<&str, u16> = document
+        .nets
+        .iter()
+        .enumerate()
+        .filter_map(|(i, net)| {
+            let idx = (i + 1) as u32;
+            (idx <= 0xFFFE).then_some((net.name.as_str(), idx as u16))
+        })
+        .collect();
+    let resolve = |name: &Option<String>| -> u16 {
+        name.as_deref()
+            .and_then(|n| lookup.get(n).copied())
+            .unwrap_or(0)
+    };
+    for t in &mut document.tracks {
+        t.net_index = resolve(&t.net);
+    }
+    for a in &mut document.arcs {
+        a.net_index = resolve(&a.net);
+    }
+    for p in &mut document.pads {
+        p.net_index = resolve(&p.net);
+    }
+    for v in &mut document.vias {
+        v.net_index = resolve(&v.net);
+    }
+    for f in &mut document.fills {
+        f.net_index = resolve(&f.net);
+    }
+    for r in &mut document.regions {
+        r.net_index = resolve(&r.net);
+    }
+}
+
+fn write_doc_board(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    cf.create_storage("Board6")?;
+    write_storage_header(cf, "Board6/Header", 1)?;
+
+    let entries: Vec<(String, String)> =
+        super::defaults::ensure_pcbdoc_board_parameters_complete(
+            document.board_parameters.as_ref().map(|v| v.as_slice()),
+        );
+
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    // Emit verbatim `|k=v|…\x00` so repeated `RECORD=Board` markers and
+    // embedded `\r` separators round-trip byte-for-byte.
+    bw.write_block(|w| {
+        let mut body = Vec::<u8>::new();
+        for (k, v) in &entries {
+            body.push(b'|');
+            body.extend_from_slice(crate::encoding::encode(k).as_ref());
+            body.push(b'=');
+            body.extend_from_slice(crate::encoding::encode(v).as_ref());
+        }
+        body.push(0);
+        w.write_bytes(&body)?;
+        Ok(())
+    })?;
+    cf.write_stream("Board6/Data", &buf.into_inner())?;
+    Ok(())
+}
+
+/// Emit `FileHeaderSix` (75-byte modern marker) and `FileHeader` (24-byte
+/// legacy stub). Order matters — `FileHeaderSix` lands at SID 1, which is
+/// what marks the file as modern PcbDoc. Round-trips reuse `additional_streams`
+/// bytes verbatim when present.
+fn write_doc_file_headers(
+    cf: &mut CompoundFile,
+    _document: &Document,
+    leftover: &mut std::collections::BTreeMap<String, Vec<u8>>,
+) -> Result<()> {
+    if let Some(bytes) = leftover.remove("FileHeaderSix") {
+        cf.write_stream("FileHeaderSix", &bytes)?;
+    } else {
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut bw = BinaryWriter::new(&mut buf);
+        let version_text = "PCB 6.0 Binary File";
+        let version_bytes = encoding::encode(version_text);
+        bw.write_i32(version_bytes.len() as i32)?;
+        bw.write_u8(version_bytes.len() as u8)?;
+        bw.write_bytes(&version_bytes)?;
+        bw.write_f64(5.01)?;
+        let guid = stable_document_guid();
+        let id_bytes = encoding::encode(&guid);
+        bw.write_i32(id_bytes.len() as i32)?;
+        bw.write_u8(id_bytes.len() as u8)?;
+        bw.write_bytes(&id_bytes)?;
+        cf.write_stream("FileHeaderSix", &buf.into_inner())?;
+    }
+
+    if let Some(bytes) = leftover.remove("FileHeader") {
+        cf.write_stream("FileHeader", &bytes)?;
+    } else {
+        let mut legacy: Vec<u8> = Vec::with_capacity(24);
+        legacy.extend_from_slice(&19i32.to_le_bytes());
+        for ch in "PCB 5.0 Bi".chars() {
+            let v = ch as u32;
+            legacy.push((v & 0xff) as u8);
+            legacy.push(((v >> 8) & 0xff) as u8);
+        }
+        debug_assert_eq!(legacy.len(), 24);
+        cf.write_stream("FileHeader", &legacy)?;
+    }
+    Ok(())
+}
+
+/// Per-session GUID for from-scratch documents, derived from the clock.
+fn stable_document_guid() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0xDEAD_BEEF_CAFE_BABE);
+    let a = (nanos as u32).wrapping_mul(0x9E37_79B9);
+    let b = ((nanos >> 32) as u32) ^ a;
+    let c = (nanos.wrapping_mul(0xBF58_476D_1CE4_E5B9) >> 16) as u16;
+    let d = ((nanos.wrapping_mul(0x94D0_49BB_1331_11EB)) >> 48) as u16;
+    let e = nanos.wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
+    format!(
+        "{{{:08X}-{:04X}-{:04X}-{:04X}-{:012X}}}",
+        a,
+        (b & 0xFFFF) as u16,
+        ((b >> 16) & 0xFFFF) as u16,
+        c ^ d,
+        e & 0xFFFF_FFFF_FFFF,
+    )
+}
+
+/// Create every storage and stream in the canonical order a freshly-saved
+/// Altium PcbDoc emits. Each entry pulls from `leftover` (round-trip case)
+/// or falls back to a default stub, removing the key from `leftover` so the
+/// trailing `write_additional_streams` doesn't double-write it.
+fn write_doc_storages_in_canonical_order(
+    cf: &mut CompoundFile,
+    doc: &Document,
+    leftover: &mut std::collections::BTreeMap<String, Vec<u8>>,
+) -> Result<()> {
+    let default_advanced_placer = default_param_block(&[
+        ("RECORD", "AdvancedPlacerOptions"),
+        ("PLACELARGECLEAR", "50mil"),
+        ("PLACESMALLCLEAR", "20mil"),
+        ("PLACEUSEROTATION", "TRUE"),
+        ("PLACEUSELAYERSWAP", "FALSE"),
+        ("PLACEBYPASSNET1", ""),
+        ("PLACEBYPASSNET2", ""),
+        ("PLACEUSEADVANCEDPLACE", "TRUE"),
+        ("PLACEUSEGROUPING", "TRUE"),
+    ]);
+    let default_drc = default_param_block(&[
+        ("RECORD", "DesignRuleCheckerOptions"),
+        ("DOMAKEDRCFILE", "FALSE"),
+        ("DOMAKEDRCERRORLIST", "FALSE"),
+        ("DOSUBNETDETAILS", "TRUE"),
+        ("REPORTFILENAME", ""),
+        ("EXTERNALNETLISTFILENAME", ""),
+        ("CHECKEXTERNALNETLIST", "FALSE"),
+        ("MAXVIOLATIONCOUNT", "500"),
+        ("REPORTDRILLEDSMTPADS", "FALSE"),
+        ("REPORTINVALIDMULTILAYERPADS", "TRUE"),
+    ]);
+    let default_pin_swap = default_param_block(&[
+        ("RECORD", "PinSwapOptions"),
+        ("QUIET", "FALSE"),
+        ("APPROXIMATEPINPOSITIONS", "FALSE"),
+        ("ALLOWPARTIALLYROUTEDCONNECTIONS", "TRUE"),
+        ("VIAPENALTYSTATE", "TRUE"),
+        ("CROSSOVERRATIO", "50"),
+        ("VIAPENALTYVALUE", "0"),
+        ("IGNORENETS", ""),
+        ("IGNORENETCLASSES", ""),
+        ("IGNORECOMPONENTS", ""),
+        ("IGNOREDIFFERENTIALPAIRS", ""),
+        ("HEURISTICNAME", ""),
+        ("HEURISTICONOFFSTATE", ""),
+        ("HEURISTICWEIGHTVALUE", ""),
+    ]);
+    let default_padvia_cache = default_param_block(&[
+        (
+            "PADVIALIBRARY.LIBRARYID",
+            "{00000000-0000-0000-0000-000000000001}",
+        ),
+        ("PADVIALIBRARY.LIBRARYNAME", "<Local>"),
+        ("PADVIALIBRARY.DISPLAYUNITS", "1"),
+    ]);
+    let layer_kind_data = default_layer_kind_mapping_data();
+    let fvi_data = default_file_version_info_data();
+
+    // Pre-Board6.
+    emit_or_consume(cf, leftover, "Texts", 3, &[])?;
+    emit_or_consume(cf, leftover, "EmbeddedFonts6", 0, &[])?;
+
+    write_doc_board(cf, doc)?;
+
+    emit_or_consume(cf, leftover, "Advanced Placer Options6", 0, &default_advanced_placer)?;
+    emit_or_consume(cf, leftover, "Design Rule Checker Options6", 0, &default_drc)?;
+
+    write_doc_classes(cf, doc)?;
+    emit_or_consume(cf, leftover, "Classes6", 0, &[])?;
+    write_doc_nets(cf, doc)?;
+    emit_or_consume(cf, leftover, "Nets6", 0, &[])?;
+    write_doc_components(cf, doc)?;
+    emit_or_consume(cf, leftover, "Components6", 0, &[])?;
+    write_doc_polygons(cf, doc)?;
+    emit_or_consume(cf, leftover, "Polygons6", 0, &[])?;
+    emit_or_consume(cf, leftover, "Dimensions6", 0, &[])?;
+    emit_or_consume(cf, leftover, "Coordinates6", 0, &[])?;
+    write_doc_embedded_boards(cf, doc)?;
+    emit_or_consume(cf, leftover, "EmbeddedBoards6", 0, &[])?;
+    emit_or_consume(cf, leftover, "Connections6", 0, &[])?;
+    write_doc_rules(cf, doc)?;
+    emit_or_consume(cf, leftover, "Rules6", 0, &[])?;
+    emit_or_consume(cf, leftover, "FromTos6", 0, &[])?;
+    write_doc_differential_pairs(cf, doc)?;
+    emit_or_consume(cf, leftover, "DifferentialPairs6", 0, &[])?;
+    emit_or_consume(cf, leftover, "Embeddeds6", 0, &[])?;
+    write_doc_arcs(cf, doc)?;
+    emit_or_consume(cf, leftover, "Arcs6", 0, &[])?;
+    write_doc_pads(cf, doc)?;
+    emit_or_consume(cf, leftover, "Pads6", 0, &[])?;
+    write_doc_vias(cf, doc)?;
+    emit_or_consume(cf, leftover, "Vias6", 0, &[])?;
+    write_doc_tracks(cf, doc)?;
+    emit_or_consume(cf, leftover, "Tracks6", 0, &[])?;
+    write_doc_texts(cf, doc)?;
+    emit_or_consume(cf, leftover, "Texts6", 0, &[])?;
+    write_doc_fills(cf, doc)?;
+    emit_or_consume(cf, leftover, "Fills6", 0, &[])?;
+    write_doc_regions(cf, doc)?;
+    emit_or_consume(cf, leftover, "Regions6", 0, &[])?;
+    write_doc_component_bodies(cf, doc)?;
+    emit_or_consume(cf, leftover, "ComponentBodies6", 0, &[])?;
+    emit_or_consume(cf, leftover, "Pin Swap Options6", 0, &default_pin_swap)?;
+    write_doc_wide_strings(cf, doc)?;
+    emit_or_consume(cf, leftover, "WideStrings6", 0, &[])?;
+    emit_or_consume(cf, leftover, "ShapeBasedRegions6", 0, &[])?;
+    emit_or_consume(cf, leftover, "ShapeBasedComponentBodies6", 0, &[])?;
+    emit_or_consume(cf, leftover, "Models", 0, &[])?;
+    emit_or_consume(cf, leftover, "ModelsNoEmbed", 0, &[])?;
+    emit_or_consume(cf, leftover, "Textures", 0, &[])?;
+    emit_or_consume(cf, leftover, "ExtendedPrimitiveInformation", 0, &[])?;
+    // Unlike primitive lists, even an empty UnionNames table contains a
+    // little-endian name count. A zero-byte Data stream makes AD read past EOF.
+    // Repair only the empty stub emitted by older versions; preserve real data.
+    if leftover.get("UnionNames/Data").is_some_and(Vec::is_empty)
+        && leftover.get("UnionNames/Header").is_none_or(|h| h == &[0, 0, 0, 0])
+    {
+        leftover.remove("UnionNames/Data");
+        leftover.remove("UnionNames/Header");
+    }
+    emit_or_consume(cf, leftover, "UnionNames", 1, &0u32.to_le_bytes())?;
+    emit_or_consume(cf, leftover, "SmartUnions", 0, &[])?;
+    emit_or_consume(cf, leftover, "BoardRegions", 0, &[])?;
+    emit_or_consume(cf, leftover, "UniqueIDPrimitiveInformation", 0, &[])?;
+    emit_or_consume(cf, leftover, "PinPairsSection", 0, &[])?;
+    emit_or_consume(cf, leftover, "SignalClasses", 0, &[])?;
+    emit_or_consume(cf, leftover, "PadViaLibrary", 0, &[])?;
+    emit_or_consume(cf, leftover, "PadViaLibraryCache", 0, &default_padvia_cache)?;
+    emit_or_consume(cf, leftover, "PadViaLibraryLinks", 0, &[])?;
+    emit_or_consume(cf, leftover, "PrimitiveParameters", 0, &[])?;
+    emit_or_consume(cf, leftover, "WaivedViolations", 0, &[])?;
+    emit_or_consume(cf, leftover, "LayerKindMapping", 1, &layer_kind_data)?;
+    emit_or_consume(cf, leftover, "ConstraintManager", 0, &[])?;
+    emit_or_consume(cf, leftover, "PadViaCacheLibraryLinksSection", 0, &[])?;
+    emit_or_consume(cf, leftover, "PrimitiveGuids", 0, &[])?;
+    emit_or_consume(cf, leftover, "FileVersionInfo", 1, &fvi_data)?;
+
+    Ok(())
+}
+
+/// Write `path` using `leftover` Header/Data bytes when present, otherwise
+/// the supplied defaults. If a typed writer already created the storage,
+/// leave it alone but still consume matching `leftover` entries so they
+/// don't get re-emitted later.
+fn emit_or_consume(
+    cf: &mut CompoundFile,
+    leftover: &mut std::collections::BTreeMap<String, Vec<u8>>,
+    path: &str,
+    default_header: u32,
+    default_data: &[u8],
+) -> Result<()> {
+    let header_key = format!("{path}/Header");
+    let data_key = format!("{path}/Data");
+
+    if cf.is_storage(path) {
+        leftover.remove(&header_key);
+        leftover.remove(&data_key);
+        return Ok(());
+    }
+
+    cf.create_storage(path)?;
+    if let Some(bytes) = leftover.remove(&header_key) {
+        cf.write_stream(&header_key, &bytes)?;
+    } else {
+        cf.write_stream(&header_key, &default_header.to_le_bytes())?;
+    }
+    if let Some(bytes) = leftover.remove(&data_key) {
+        cf.write_stream(&data_key, &bytes)?;
+    } else {
+        cf.write_stream(&data_key, default_data)?;
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn write_doc_default_root_stubs(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    if !document.additional_streams.contains_key("FileVersionInfo/Header") {
+        cf.write_stream("FileVersionInfo/Header", &u32_le_bytes(1))?;
+    }
+    if !document.additional_streams.contains_key("FileVersionInfo/Data") {
+        cf.write_stream("FileVersionInfo/Data", &default_file_version_info_data())?;
+    }
+
+    // Each stub is a 4-byte u32 record-count + a (usually empty) data payload.
+    let mut emit = |path: &str, header: u32, data: &[u8]| -> Result<()> {
+        if document.additional_streams.contains_key(&format!(
+            "{}/Header",
+            path
+        )) {
+            return Ok(());
+        }
+        if cf.is_storage(path) {
+            return Ok(());
+        }
+        cf.create_storage(path)?;
+        cf.write_stream(format!("{path}/Header"), &header.to_le_bytes())?;
+        cf.write_stream(format!("{path}/Data"), data)?;
+        Ok(())
+    };
+
+    // Storage names below mirror what Altium's own writer produces. Names
+    // it doesn't emit (CornerRadiusChamfer, CustomShapes, DrillManager,
+    // LettersGeometry, Rooms6) were tried and rejected.
+    for name in [
+        "Arcs6",
+        "Pads6",
+        "Vias6",
+        "Tracks6",
+        "Texts6",
+        "Fills6",
+        "Regions6",
+        "ComponentBodies6",
+        "Components6",
+        "Nets6",
+        "Polygons6",
+        "Rules6",
+        "Classes6",
+        "DifferentialPairs6",
+        "EmbeddedBoards6",
+        "WideStrings6",
+        "Dimensions6",
+        "Coordinates6",
+        "Connections6",
+        "FromTos6",
+        "Embeddeds6",
+        "ShapeBasedRegions6",
+        "ShapeBasedComponentBodies6",
+        "ModelsNoEmbed",
+        "Textures",
+        "ExtendedPrimitiveInformation",
+        "UnionNames",
+        "SmartUnions",
+        "BoardRegions",
+        "UniqueIDPrimitiveInformation",
+        "PinPairsSection",
+        "SignalClasses",
+        "PadViaLibrary",
+        "PadViaLibraryLinks",
+        "PrimitiveParameters",
+        "WaivedViolations",
+        "ConstraintManager",
+        "PrimitiveGuids",
+        "EmbeddedFonts6",
+        "Models",
+    ] {
+        emit(name, 0, &[])?;
+    }
+
+    // Option-block storages with default parameter content.
+    emit(
+        "Advanced Placer Options6",
+        0,
+        &default_param_block(&[
+            ("RECORD", "AdvancedPlacerOptions"),
+            ("PLACELARGECLEAR", "50mil"),
+            ("PLACESMALLCLEAR", "20mil"),
+            ("PLACEUSEROTATION", "TRUE"),
+            ("PLACEUSELAYERSWAP", "FALSE"),
+            ("PLACEBYPASSNET1", ""),
+            ("PLACEBYPASSNET2", ""),
+            ("PLACEUSEADVANCEDPLACE", "TRUE"),
+            ("PLACEUSEGROUPING", "TRUE"),
+        ]),
+    )?;
+    emit(
+        "Design Rule Checker Options6",
+        0,
+        &default_param_block(&[
+            ("RECORD", "DesignRuleCheckerOptions"),
+            ("DOMAKEDRCFILE", "FALSE"),
+            ("DOMAKEDRCERRORLIST", "FALSE"),
+            ("DOSUBNETDETAILS", "TRUE"),
+            ("REPORTFILENAME", ""),
+            ("EXTERNALNETLISTFILENAME", ""),
+            ("CHECKEXTERNALNETLIST", "FALSE"),
+            ("MAXVIOLATIONCOUNT", "500"),
+            ("REPORTDRILLEDSMTPADS", "FALSE"),
+            ("REPORTINVALIDMULTILAYERPADS", "TRUE"),
+        ]),
+    )?;
+    emit(
+        "Pin Swap Options6",
+        0,
+        &default_param_block(&[
+            ("RECORD", "PinSwapOptions"),
+            ("QUIET", "FALSE"),
+            ("APPROXIMATEPINPOSITIONS", "FALSE"),
+            ("ALLOWPARTIALLYROUTEDCONNECTIONS", "TRUE"),
+            ("VIAPENALTYSTATE", "TRUE"),
+            ("CROSSOVERRATIO", "50"),
+            ("VIAPENALTYVALUE", "0"),
+            ("IGNORENETS", ""),
+            ("IGNORENETCLASSES", ""),
+            ("IGNORECOMPONENTS", ""),
+            ("IGNOREDIFFERENTIALPAIRS", ""),
+            ("HEURISTICNAME", ""),
+            ("HEURISTICONOFFSTATE", ""),
+            ("HEURISTICWEIGHTVALUE", ""),
+        ]),
+    )?;
+    emit(
+        "PadViaLibraryCache",
+        0,
+        &default_param_block(&[
+            (
+                "PADVIALIBRARY.LIBRARYID",
+                "{00000000-0000-0000-0000-000000000001}",
+            ),
+            ("PADVIALIBRARY.LIBRARYNAME", "<Local>"),
+            ("PADVIALIBRARY.DISPLAYUNITS", "1"),
+        ]),
+    )?;
+    emit("LayerKindMapping", 1, &default_layer_kind_mapping_data())?;
+
+    // Legacy `Texts` storage — Altium expects it present, but tolerates
+    // an empty Data payload.
+    if !cf.is_storage("Texts") {
+        cf.create_storage("Texts")?;
+        cf.write_stream("Texts/Header", &3u32.to_le_bytes())?;
+        cf.write_stream("Texts/Data", &[])?;
+    }
+
+    Ok(())
+}
+
+fn default_param_block(entries: &[(&str, &str)]) -> Vec<u8> {
+    let mut body = String::new();
+    for (k, v) in entries {
+        body.push('|');
+        body.push_str(k);
+        body.push('=');
+        body.push_str(v);
+    }
+    let mut bytes = body.into_bytes();
+    bytes.push(0);
+    let mut out = Vec::with_capacity(4 + bytes.len());
+    out.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(&bytes);
+    out
+}
+
+fn write_doc_wide_strings(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    if document.texts.is_empty() {
+        return Ok(());
+    }
+    cf.create_storage("WideStrings6")?;
+    write_storage_header(cf, "WideStrings6/Header", 1)?;
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    let mut params = ParameterMap::new();
+    for (i, text) in document.texts.iter().enumerate() {
+        let encoded = text
+            .text
+            .chars()
+            .map(|c| (c as u32).to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        params.insert(format!("ENCODEDTEXT{i}").as_str(), encoded);
+    }
+    write_c_string_param_block(&mut bw, &params)?;
+    cf.write_stream("WideStrings6/Data", &buf.into_inner())?;
+    Ok(())
+}
+
+macro_rules! write_doc_collection {
+    ($name:ident, $field:ident, $storage:literal, $tag:literal, $writer:ident) => {
+        fn $name(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+            if document.$field.is_empty() {
+                return Ok(());
+            }
+            cf.create_storage($storage)?;
+            write_storage_header(
+                cf,
+                concat!($storage, "/Header"),
+                document.$field.len() as i32,
+            )?;
+            let mut buf = Cursor::new(Vec::<u8>::new());
+            let mut bw = BinaryWriter::new(&mut buf);
+            for item in &document.$field {
+                bw.write_u8($tag)?;
+                $writer(&mut bw, item)?;
+            }
+            cf.write_stream(concat!($storage, "/Data"), &buf.into_inner())?;
+            Ok(())
+        }
+    };
+}
+
+write_doc_collection!(write_doc_arcs, arcs, "Arcs6", 1, write_arc);
+write_doc_collection!(write_doc_pads, pads, "Pads6", 2, write_pad);
+write_doc_collection!(write_doc_vias, vias, "Vias6", 3, write_via);
+write_doc_collection!(write_doc_tracks, tracks, "Tracks6", 4, write_track);
+write_doc_collection!(write_doc_fills, fills, "Fills6", 6, write_fill);
+write_doc_collection!(write_doc_regions, regions, "Regions6", 11, write_region);
+write_doc_collection!(
+    write_doc_component_bodies,
+    component_bodies,
+    "ComponentBodies6",
+    12,
+    write_component_body
+);
+
+/// Writes a `*6/Data` stream as a sequence of C-string parameter blocks, one
+/// per item, with the standard `Header` companion stream.
+fn write_param_storage<I, F>(
+    cf: &mut CompoundFile,
+    storage: &str,
+    items: I,
+    fill_one: F,
+) -> Result<()>
+where
+    I: IntoIterator,
+    F: Fn(&I::Item, &mut ParameterMap),
+{
+    write_param_storage_with_prefix(cf, storage, items, fill_one, None)
+}
+
+/// Like `write_param_storage` but allows a per-record version word that
+/// gets emitted before each record's size header.
+///
+/// Some param-record storages (Rules6 in particular) carry a `u16`
+/// "record version" word in front of every record's `u32 size` prefix.
+/// The reader auto-detects this in `detect_record_prefix` and the
+/// per-record bytes have to round-trip — without them Altium fires the
+/// "catastrophic error" dialog on file open because every rule record
+/// after the first is read at the wrong offset.
+fn write_param_storage_with_prefix<I, F>(
+    cf: &mut CompoundFile,
+    storage: &str,
+    items: I,
+    fill_one: F,
+    record_version: Option<u16>,
+) -> Result<()>
+where
+    I: IntoIterator,
+    F: Fn(&I::Item, &mut ParameterMap),
+{
+    let collected: Vec<_> = items.into_iter().collect();
+    if collected.is_empty() {
+        return Ok(());
+    }
+    cf.create_storage(storage)?;
+    write_storage_header(cf, &format!("{storage}/Header"), collected.len() as i32)?;
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    for item in collected.iter() {
+        if let Some(v) = record_version {
+            bw.write_u16(v)?;
+        }
+        let mut params = ParameterMap::new();
+        fill_one(item, &mut params);
+        write_c_string_param_block(&mut bw, &params)?;
+    }
+    cf.write_stream(format!("{storage}/Data"), &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_doc_nets(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    write_param_storage(cf, "Nets6", document.nets.iter(), |net, p| {
+        super::doc_codec::net_to_params(net, p);
+    })
+}
+
+fn write_doc_components(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    write_param_storage(cf, "Components6", document.components.iter(), |c, p| {
+        super::doc_codec::component_to_params(c, p);
+    })
+}
+
+fn write_doc_polygons(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    write_param_storage(cf, "Polygons6", document.polygons.iter(), |poly, p| {
+        super::doc_codec::polygon_to_params(poly, p);
+    })
+}
+
+fn write_doc_rules(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    // Each Rules6 record is preceded by a u16 rule-type-code word. The
+    // value is rule-kind-specific (e.g. UnpouredPolygon = 62,
+    // SilkToSilkClearance = 55, FanoutControl = 49). We preserve the
+    // exact code each rule was read with via `rule.rule_type_code`.
+    if document.rules.is_empty() {
+        return Ok(());
+    }
+    cf.create_storage("Rules6")?;
+    write_storage_header(cf, "Rules6/Header", document.rules.len() as i32)?;
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    for rule in &document.rules {
+        bw.write_u16(rule.rule_type_code)?;
+        let mut params = ParameterMap::new();
+        super::doc_codec::rule_to_params(rule, &mut params);
+        write_c_string_param_block(&mut bw, &params)?;
+    }
+    cf.write_stream("Rules6/Data", &buf.into_inner())?;
+    Ok(())
+}
+
+fn write_doc_classes(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    write_param_storage(cf, "Classes6", document.classes.iter(), |c, p| {
+        super::doc_codec::object_class_to_params(c, p);
+    })
+}
+
+fn write_doc_differential_pairs(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    write_param_storage(
+        cf,
+        "DifferentialPairs6",
+        document.differential_pairs.iter(),
+        |d, p| {
+            super::doc_codec::differential_pair_to_params(d, p);
+        },
+    )
+}
+
+fn write_doc_rooms(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    write_param_storage(cf, "Rooms6", document.rooms.iter(), |r, p| {
+        super::doc_codec::room_to_params(r, p);
+    })
+}
+
+fn write_doc_embedded_boards(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    write_param_storage(
+        cf,
+        "EmbeddedBoards6",
+        document.embedded_boards.iter(),
+        |b, p| {
+            super::doc_codec::embedded_board_to_params(b, p);
+        },
+    )
+}
+
+fn write_doc_texts(cf: &mut CompoundFile, document: &Document) -> Result<()> {
+    if document.texts.is_empty() {
+        return Ok(());
+    }
+    cf.create_storage("Texts6")?;
+    write_storage_header(cf, "Texts6/Header", document.texts.len() as i32)?;
+    let mut buf = Cursor::new(Vec::<u8>::new());
+    let mut bw = BinaryWriter::new(&mut buf);
+    for (i, text) in document.texts.iter().enumerate() {
+        bw.write_u8(5)?;
+        write_text(&mut bw, text, i as i32)?;
+    }
+    cf.write_stream("Texts6/Data", &buf.into_inner())?;
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn coord_to_string(c: Coord) -> String {
+    c.to_raw().to_string()
+}

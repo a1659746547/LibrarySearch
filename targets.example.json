@@ -1,0 +1,12 @@
+{
+  "SchemaVersion": 1,
+  "Targets": [
+    {"AdMajor": 18, "System": "C:/Program Files/Altium/AD18/System"},
+    {"AdMajor": 19, "System": "C:/Program Files/Altium/AD19/System"},
+    {"AdMajor": 20, "System": "C:/Program Files/Altium/AD20/System"},
+    {"AdMajor": 21, "System": "C:/Program Files/Altium/AD21/System"},
+    {"AdMajor": 24, "System": "D:/Program Files/Altium/AD24/System"},
+    {"AdMajor": 25, "System": "C:/Program Files/Altium/AD25/System"},
+    {"AdMajor": 26, "System": "C:/Program Files/Altium/AD26/System"}
+  ]
+}
