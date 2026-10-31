@@ -4,7 +4,7 @@
 
 [官网下载](https://ad.kn21.xyz/download.html) · [GitHub Releases](https://github.com/a1659746547/LibrarySearch/releases) · [反馈问题](https://github.com/a1659746547/LibrarySearch/issues)
 
-![LibrarySearch 面板](docs/images/librarysearch.png)
+<a href="docs/images/librarysearch.png"><img src="docs/images/librarysearch.png" alt="LibrarySearch 面板，点击查看原图" height="480"></a>
 
 ## 功能
 
