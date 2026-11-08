@@ -127,12 +127,47 @@ fn read_section_keys(cf: &mut CompoundFile) -> Result<BTreeMap<String, String>> 
     let Some(data) = cf.try_read_stream("SectionKeys")? else {
         return Ok(map);
     };
+    // AD's format has two sized Pascal blocks per entry. rc.3 accidentally
+    // omitted the first size. Read that exact old layout only as a recovery
+    // path; the writer always publishes the AD-compatible layout.
+    match parse_section_keys(&data, true) {
+        Ok(keys) => Ok(keys),
+        Err(original) => parse_section_keys(&data, false).map_err(|_| original),
+    }
+}
+
+fn parse_section_keys(data: &[u8], sized_reference: bool) -> Result<BTreeMap<String, String>> {
+    fn string(br: &mut BinaryReader<Cursor<&[u8]>>, sized: bool) -> Result<String> {
+        let size = if sized { Some(br.read_u32()? as u64) } else { None };
+        let start = br.position()?;
+        if size.is_some_and(|n| n == 0 || n > br.length().saturating_sub(start)) {
+            return Err(Error::corrupt_in("invalid SectionKeys string size", "SectionKeys"));
+        }
+        let len = br.read_u8()? as u64;
+        if len > br.length().saturating_sub(br.position()?) || size.is_some_and(|n| len + 1 > n) {
+            return Err(Error::corrupt_in("truncated SectionKeys string", "SectionKeys"));
+        }
+        let mut bytes = vec![0; len as usize]; br.read_exact(&mut bytes)?;
+        if let Some(size) = size { br.seek_to(start + size)?; }
+        Ok(encoding::decode(&bytes))
+    }
     let mut br = BinaryReader::new(Cursor::new(data))?;
     let count = br.read_i32()?;
+    if count < 0 || count as usize > data.len() / 7 {
+        return Err(Error::corrupt_in("invalid SectionKeys entry count", "SectionKeys"));
+    }
+    let mut map = BTreeMap::new();
     for _ in 0..count {
-        let lib_ref = br.read_pascal_string()?;
-        let section_key = br.read_pascal_string_block()?;
-        map.insert(lib_ref, section_key);
+        let lib_ref = string(&mut br, sized_reference)?;
+        let section_key = string(&mut br, true)?;
+        if lib_ref.is_empty() || section_key.is_empty() || section_key.encode_utf16().count() > 31
+            || lib_ref.chars().any(char::is_control) || section_key.chars().any(char::is_control)
+            || map.insert(lib_ref, section_key).is_some() {
+            return Err(Error::corrupt_in("invalid SectionKeys entry", "SectionKeys"));
+        }
+    }
+    if br.position()? != data.len() as u64 {
+        return Err(Error::corrupt_in("trailing SectionKeys bytes", "SectionKeys"));
     }
     Ok(map)
 }

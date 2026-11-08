@@ -398,8 +398,7 @@ fn make_component_body(ee_model: &Ee3dModel, outline: Vec<CoordPoint>) -> Compon
     body.model_source = Some("Undefined".to_string());
     body.body_color_3d = 0xE0_E0_E0;
     body.body_opacity_3d = 1.0;
-    body.layer_name = "MECHANICAL1".to_string();
-    body.layer = 57;
+    crate::body_layers::set_body_layer(&mut body, false);
     body
 }
 

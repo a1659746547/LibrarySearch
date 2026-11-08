@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization;
+using LibrarySearch.Serialization;
 using System.Windows.Forms;
 
 namespace LibrarySearch {

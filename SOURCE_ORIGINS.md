@@ -9,6 +9,7 @@ LibrarySearch 的搜索、元件获取和文件转换链路使用或参考了以
 | altiumrs（上游元数据） | https://github.com/issus/altiumrs | vendored Cargo.toml 保留此 repository 地址；实际使用的源码快照来自上面列出的 korbin fork | 保留原始许可证与元数据，不混淆 fork 和上游 |
 | easyeda2kicad.py | https://github.com/uPesy/easyeda2kicad.py | easyeda2altium 解析器注释明确列出的 EasyEDA shape / pin 数据格式参考，路径为 `easyeda2kicad/easyeda/easyeda_importer.py` | 格式参考；该 Python 项目未作为依赖随仓库打包，项目原始许可证见其仓库 |
 | 嘉立创EDA / EasyEDA | https://lceda.cn/ · https://easyeda.com/ | 在线型号搜索和元件 CAD 数据服务；型号搜索请求实现在 `plugin/src/ModelSearch.cs` | 数据服务来源，区别于上述开源代码来源 |
+| AltiumSharp | https://github.com/issus/AltiumSharp | PcbLib SectionKeys 二进制布局的独立核对参考，见 PcbLibReader 的 ReadSectionKeys / ReadPascalString | 格式核对；未作为运行依赖打包 |
 
 ## 可核对的来源记录
 
@@ -22,3 +23,8 @@ LibrarySearch 的搜索、元件获取和文件转换链路使用或参考了以
 ## English summary
 
 The modified **korbin/easyeda2altium** and **korbin/altiumrs** snapshots are included in this repository. Their original MIT OR Apache-2.0 notices are retained. The EasyEDA parser explicitly credits **uPesy/easyeda2kicad.py** as a shape/pin format reference. The JLCEDA/EasyEDA service supplies online search results and CAD data; it is a data source, separate from software provenance. The altiumrs workspace still records **issus/altiumrs** as its upstream metadata; the actual snapshot origin is the korbin fork.
+
+## 3D Body 层定义核对
+
+- Altium 官方机械层文档：https://www.altium.com/documentation/altium-designer/pcb/mechanical-layers
+- 公开文件格式说明 https://github.com/embedded-society/altium-designer-mcp/blob/main/docs/PCBLIB_FORMAT.md 及 AD 生成样本的层定义用于核对 V9/旧版字段名称和 MECHPAIR 配对语义。该 GPL 项目没有作为依赖加入，没有复制其实现、模板或测试样本到发布源码；本次代码独立实现。

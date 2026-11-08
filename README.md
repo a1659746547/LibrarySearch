@@ -6,11 +6,14 @@
 
 <a href="docs/images/librarysearch.png"><img src="docs/images/librarysearch.png" alt="LibrarySearch 面板，点击查看原图" height="480"></a>
 
+当前正式版：**[1.1.4](https://github.com/a1659746547/LibrarySearch/releases/tag/v1.1.4)**。
+
 ## 功能
 
 - 在线搜索型号、厂家或 C 编号，获取配套原理图符号和 PCB 封装。
 - 自动扫描本地 SchLib、PcbLib、IntLib，支持大库搜索。
-- 管理已下载元件、批量删除缓存、按需补齐 3D 模型。
+- 管理已下载元件、批量删除缓存；默认获取可用 3D 模型，可在设置中关闭或单独补齐。
+- 所有已下载元件自动组成配套总库，工程复用固定的符号库和封装库文件，参见[总库说明](plugin/docs/已下载总库说明.md)。
 - 默认采用 AD 外观，提供可选的符号视觉设置。
 - 兼容多版本 AD，使用同一个 Install.cmd，安装器自动选择对应插件。其他版本可尝试兼容安装并自行验证。
 

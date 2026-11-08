@@ -131,7 +131,7 @@ function Get-LibrarySearchHostManifest {
  $core=Resolve-LibrarySearchPayloadPath $manifest.CorePath
  if(!(Test-Path -LiteralPath $core) -or (Get-FileHash -LiteralPath $core).Hash -ne $manifest.CoreSHA256){throw 'Shared core is missing or changed; rebuild all hosts'}
  $coreSources=@($manifest.CoreSources)
- $expectedCoreSources=@('src\LibraryStore.cs','src\LibraryPanel.cs','src\ResultScrollBar.cs','src\Diagnostics.cs','src\ModelSearch.cs','src\InlineSearch.cs','src\SettingsPage.cs','src\PanelPages.cs','src\Updates.cs')
+ $expectedCoreSources=@('src\LibraryStore.cs','src\UnifiedLibrary.cs','src\HostLibraryRefresh.cs','src\PortableJson.cs','src\LibraryPanel.cs','src\ResultScrollBar.cs','src\Diagnostics.cs','src\ModelSearch.cs','src\InlineSearch.cs','src\SettingsPage.cs','src\PanelPages.cs','src\Updates.cs')
  if($coreSources.Count -ne $expectedCoreSources.Count -or @($coreSources.Path | Sort-Object -Unique).Count -ne $expectedCoreSources.Count){throw 'Shared source metadata is incomplete'}
  foreach($entry in $coreSources){
   if($entry.Path -notin $expectedCoreSources){throw 'Invalid shared source path'}

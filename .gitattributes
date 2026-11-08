@@ -3,3 +3,7 @@
 *.md text eol=lf
 .gitignore text eol=lf
 .gitattributes text eol=lf
+
+# Preserve bytes recorded by native/core build provenance.
+converter/** -text
+plugin/src/** -text

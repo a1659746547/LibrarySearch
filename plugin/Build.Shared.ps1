@@ -5,7 +5,7 @@ $release=Get-LibrarySearchRelease
 $version=$release.Version
 if(!$CoreBindingVersion){$CoreBindingVersion=$version}
 if($CoreBindingVersion -notmatch '^\d+\.\d+\.\d+(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)?$'){throw 'Invalid core binding version'}
-$sources=@('src\LibraryStore.cs','src\LibraryPanel.cs','src\ResultScrollBar.cs','src\Diagnostics.cs','src\ModelSearch.cs','src\InlineSearch.cs','src\SettingsPage.cs','src\PanelPages.cs','src\Updates.cs')
+$sources=@('src\LibraryStore.cs','src\UnifiedLibrary.cs','src\HostLibraryRefresh.cs','src\PortableJson.cs','src\LibraryPanel.cs','src\ResultScrollBar.cs','src\Diagnostics.cs','src\ModelSearch.cs','src\InlineSearch.cs','src\SettingsPage.cs','src\PanelPages.cs','src\Updates.cs')
 if((Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'src\LibraryStore.cs')) -notmatch ('Version="'+[regex]::Escape($version)+'"')){throw 'Release.psd1 and ReleaseInfo.Version must match'}
 $output=Join-Path $PSScriptRoot 'shared'
 New-Item -ItemType Directory -Force -Path $output | Out-Null
@@ -15,7 +15,7 @@ $core=Join-Path $output $coreName
 $compiler=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $absoluteSources=@($sources | ForEach-Object {Join-Path $PSScriptRoot $_})
 if($ManagedRuntime -eq 'netfx48'){
- & $compiler /nologo /codepage:65001 /target:library /platform:x64 /optimize+ "/out:$core" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll $absoluteSources
+ & $compiler /nologo /codepage:65001 /target:library /platform:x64 /optimize+ "/out:$core" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Core.dll /reference:System.Runtime.Serialization.dll /reference:System.Xml.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll $absoluteSources
  if($LASTEXITCODE -ne 0){throw 'Shared core compilation failed'}
 }else{
  . (Join-Path $PSScriptRoot 'Build.Modern.ps1')

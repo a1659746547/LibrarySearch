@@ -12,6 +12,7 @@ namespace LibrarySearch {
   readonly TableLayoutPanel layout=new TableLayoutPanel();
   readonly ImageList rowImages=new ImageList();
   readonly Label loading=new Label();
+  readonly ModelSearchPageCache cache=new ModelSearchPageCache();
   string actionText="放置符号";
   public string ActionText {get{return actionText;}set{actionText=value;fetch.Text=value;}}
   CancellationTokenSource pending;
@@ -41,13 +42,18 @@ namespace LibrarySearch {
   public void CancelSearch(){var operation=pending;if(operation==null)return;pending=null;operation.Cancel();running=false;UpdateActions();summary.Text="已取消搜索。";if(RunningChanged!=null)RunningChanged(false);}
   public void Search(string text,int page=1){
    if(running)return;try{text=ModelSearchClient.ValidateQuery(text);}catch(Exception error){summary.Text=error.Message;return;}
-   // Keep the page size while paging, so resizing cannot skip or repeat items.
-   int pageSize=current!=null&&text==keyword?current.PageSize:Math.Max(10,Math.Min(50,(int)Math.Ceiling((double)Math.Max(0,rows.ClientSize.Height-28)/Math.Max(46,rowImages.ImageSize.Height))));
+   // A tall panel must not increase the first request or change page boundaries.
+   int pageSize=ModelSearchClient.PageSize;
+   var cached=cache.Get(text,page,pageSize);
    running=true;current=null;rows.Items.Clear();summary.Text="正在搜索 "+text+"…";pending=new CancellationTokenSource();var operation=pending;UpdateActions();if(RunningChanged!=null)RunningChanged(true);
    string requested=text;
    ThreadPool.QueueUserWorkItem(delegate{
     ModelSearchPage found=null;Exception failure=null;
-    try{found=SearchProvider!=null?SearchProvider(requested,page,operation.Token):SizedSearchProvider(requested,page,operation.Token,pageSize);}catch(Exception error){failure=error;}
+    try{
+     found=cached??(SearchProvider!=null?SearchProvider(requested,page,operation.Token):SizedSearchProvider(requested,page,operation.Token,pageSize));
+     operation.Token.ThrowIfCancellationRequested();
+     if(cached==null)cache.Store(requested,page,pageSize,found);
+    }catch(Exception error){failure=error;}
     Action finish=delegate{
      if(pending!=operation){operation.Dispose();return;}
      try{

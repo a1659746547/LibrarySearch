@@ -5,7 +5,7 @@ $fixture=[IO.Path]::GetFullPath($SourceFixture);$outputPath=[IO.Path]::GetFullPa
 if(Test-Path -LiteralPath $outputPath){throw 'Choose a new scratch output directory'}
 New-Item -ItemType Directory -Force -Path $outputPath|Out-Null
 $compiler=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
-$sourceNames=@('LibraryStore','LibraryPanel','Diagnostics','ModelSearch','InlineSearch','SettingsPage','PanelPages','Updates')
+$sourceNames=@('LibraryStore','UnifiedLibrary','HostLibraryRefresh','PortableJson','LibraryPanel','ResultScrollBar','Diagnostics','ModelSearch','InlineSearch','SettingsPage','PanelPages','Updates')
 $sources=@();$sourceDirectory=Join-Path $outputPath 'test-source';New-Item -ItemType Directory -Path $sourceDirectory|Out-Null
 $profile=Join-Path $outputPath 'isolated-profile'
 foreach($name in $sourceNames){
@@ -18,7 +18,7 @@ foreach($name in $sourceNames){
  $target=Join-Path $sourceDirectory ($name+'.cs');[IO.File]::WriteAllText($target,$text,[Text.UTF8Encoding]::new($false));$sources+=$target
 }
 $core=Join-Path $outputPath 'LibrarySearch.Core-1.1.0-beta.2.dll'
-$references=@('/reference:System.Core.dll','/reference:System.Web.Extensions.dll','/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll')
+$references=@('/reference:System.Core.dll','/reference:System.Runtime.Serialization.dll','/reference:System.Xml.dll','/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll')
 & $compiler /nologo /codepage:65001 /target:library /platform:x64 ('/out:'+$core) $references $sources
 if($LASTEXITCODE -ne 0){throw 'Isolated core compilation failed'}
 $bin=Join-Path $outputPath 'distribution/online/bin';New-Item -ItemType Directory -Force -Path $bin|Out-Null

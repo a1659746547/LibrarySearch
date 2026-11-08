@@ -51,8 +51,8 @@ class PanelRenderingTests {
    var view=Get(panel,"modelResults");int requested=0;
    Set(view,"SizedSearchProvider",new Func<string,int,CancellationToken,int,ModelSearchPage>((q,p,t,count)=>{requested=count;return new ModelSearchPage{Page=p,PageSize=count,Total=100,Items=Enumerable.Range(0,count).Select(i=>new ModelCandidate{Code="C"+(p*count+i),Model="IRF3710 "+i,Manufacturer="Infineon",Package="TO-220AB",HasLibrary=true}).ToArray()};}));
    var query=(TextBox)Get(panel,"query");query.Text="IRF3710";Call(panel,"SearchRequested",false,false,null);Wait(()=>!(bool)Get(view,"running"));var rows=(ListView)Get(view,"rows");
-   Check(requested>10,"tall panel requests more than ten online results");
-   Check(rows.GetItemRect(rows.Items.Count-1).Bottom>=rows.ClientSize.Height-46,"online rows fill the result viewport");
+   Check(requested==10,"tall panel keeps the first online request at ten results");
+   Check(rows.Items.Count==10,"first page displays only the requested ten results");
    int stable=requested;form.ClientSize=new Size(280,520);Application.DoEvents();Call(view,"Search","IRF3710",2);Wait(()=>!(bool)Get(view,"running"));Check(requested==stable,"resizing while paging preserves page boundaries");Call(view,"Search","IRF3710",1);Wait(()=>!(bool)Get(view,"running"));Check(requested==stable,"previous page uses the same page size");
    foreach(int width in new[]{360,280,420,220,360}){
     form.ClientSize=new Size(width,900);Application.DoEvents();
@@ -63,7 +63,7 @@ class PanelRenderingTests {
      CheckColumns(rows,"online "+width+"/"+count);
     }
    }
-   form.ClientSize=new Size(360,900);Application.DoEvents();Save(panel,Path.Combine(args[0],"online-adaptive-page.png"));form.Close();
+   form.ClientSize=new Size(360,900);Application.DoEvents();Save(panel,Path.Combine(args[0],"online-fixed-page.png"));form.Close();
   }
   Console.WriteLine(checks+" rendering and paging checks passed");return 0;
  }catch(Exception e){Console.Error.WriteLine(e);return 1;}}

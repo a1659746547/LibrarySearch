@@ -26,6 +26,8 @@ class ConverterContractTests {
   Check(store.Fetch("C7473159","missing.exe",false,CancellationToken.None,m=>{}).Reused,"ready pair works without either executable or network");
   var refreshed=store.Fetch("C7473159",converter,true,CancellationToken.None,m=>{});
   Check(!refreshed.Reused&&refreshed.Records[0].Package.RelativeFolder!=first.Records[0].Package.RelativeFolder,"manual refresh publishes a new pair and preserves old version");
+  Check(refreshed.Records[0].Package.FootprintName!=first.Records[0].Package.FootprintName,"new acquisition cannot resolve to the previous same-name footprint");
+  Check(refreshed.Records[0].RelatedName==refreshed.Records[1].Name,"symbol metadata points to the paired footprint identity");
   Check(refreshed.Records[0].Description!="OLD-SUPPLIER-DESCRIPTION"&&refreshed.Records[0].Package.DescriptionVersion!="product-cn-1","manual refresh cannot silently certify old supplier text as current");
   string sch=LibraryStore.Hash(refreshed.Records[0].FilePath),pcb=LibraryStore.Hash(refreshed.Records[1].FilePath);
   Check(store.LoadDownloaded()[0].Package.DescriptionRefreshRequired,"supplier refresh intent survives reload and retry");

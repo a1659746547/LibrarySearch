@@ -17,6 +17,12 @@ pub async fn run() -> Result<()> {
     let args = Args::parse();
     args.validate()?;
 
+    if let Some(request)=&args.merge_libraries {
+        let output=args.output.as_deref().ok_or_else(||Error::InvalidArg("--merge-libraries requires --output".into()))?;
+        crate::unified_library::run(Path::new(request),Path::new(output))?;
+        return Ok(());
+    }
+
     if let Some(request)=&args.search_index {
         let output=args.output.as_deref().ok_or_else(||Error::InvalidArg("--search-index requires --output".into()))?;
         crate::local_catalog::run_search(Path::new(request),Path::new(output))?;
@@ -107,6 +113,13 @@ pub async fn run() -> Result<()> {
             std::fs::write(output.with_extension("metadata.json"), serde_json::to_vec(&metadata)?)?;
             let use_custom_pin_font = args.font.is_some();
             let mut component = convert_symbol(&ee, &custom_fields, use_custom_pin_font);
+            if let Some(identity) = &args.footprint_id {
+                for implementation in &mut component.implementations {
+                    if implementation.model_type.as_deref() == Some("PCBLIB") {
+                        implementation.model_name = Some(identity.clone());
+                    }
+                }
+            }
             crate::convert::symbol::register_symbol_text_fonts(&mut sch_library, &ee, &mut component, args.font.as_deref());
             if let Some(style) = &appearance { style.apply(&mut sch_library, &ee, &mut component)?; eprintln!("  appearance: applied"); }
             sch_library.components.push(component);
@@ -145,11 +158,16 @@ pub async fn run() -> Result<()> {
                 }
             }
             eprintln!("  model3d: {}", model_status);
-            let component = convert_footprint(&ee_fp);
+            let mut component = convert_footprint(&ee_fp);
+            if let Some(identity) = &args.footprint_id {
+                component.name = identity.clone();
+                eprintln!("  footprint-identity: {}", identity);
+            }
+            let footprint_name = component.name.clone();
             pcb_library.components.push(component);
             eprintln!(
                 "  footprint: {} ({} pads)",
-                ee_fp.info.name,
+                footprint_name,
                 ee_fp.pads.len()
             );
         }
@@ -265,7 +283,8 @@ fn strip_chinese_footprint(fp: &mut crate::easyeda::types::EeFootprint) {
 }
 
 
-fn populate_pcb_library_defaults(library: &mut pcb::Library) {
+pub(crate) fn populate_pcb_library_defaults(library: &mut pcb::Library) {
+    crate::body_layers::configure(library);
     if library.unique_id.is_empty() {
         library.unique_id = "AAAAAAAA".to_string();
     }

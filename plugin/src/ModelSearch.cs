@@ -9,7 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization;
+using LibrarySearch.Serialization;
 using System.Windows.Forms;
 
 namespace LibrarySearch {
@@ -21,6 +21,33 @@ namespace LibrarySearch {
   public ModelCandidate[] Items;
   public int Total,Page;
   public int PageSize=ModelSearchClient.PageSize;
+ }
+ internal sealed class ModelSearchPageCache {
+  sealed class Entry {public ModelSearchPage Page;public DateTime Expires;public long Used;}
+  readonly object gate=new object();
+  readonly Dictionary<string,Entry> pages=new Dictionary<string,Entry>(StringComparer.OrdinalIgnoreCase);
+  readonly Func<DateTime> utcNow;readonly TimeSpan lifetime;readonly int capacity;long sequence;
+  internal ModelSearchPageCache():this(()=>DateTime.UtcNow,TimeSpan.FromMinutes(5),64){}
+  internal ModelSearchPageCache(Func<DateTime> clock,TimeSpan ttl,int limit){
+   if(clock==null||ttl<=TimeSpan.Zero||limit<1)throw new ArgumentException("Invalid search cache policy");
+   utcNow=clock;lifetime=ttl;capacity=limit;
+  }
+  static string Key(string query,int page,int size){return size+"/"+page+"/"+query.Trim();}
+  static ModelSearchPage Copy(ModelSearchPage page){return new ModelSearchPage{Page=page.Page,PageSize=page.PageSize,Total=page.Total,Items=page.Items.Select(item=>new ModelCandidate{Code=item.Code,Model=item.Model,Manufacturer=item.Manufacturer,Package=item.Package,Description=item.Description,HasLibrary=item.HasLibrary}).ToArray()};}
+  internal ModelSearchPage Get(string query,int page,int size){
+   lock(gate){Entry entry;string key=Key(query,page,size);if(!pages.TryGetValue(key,out entry))return null;
+    if(entry.Expires<=utcNow()){pages.Remove(key);return null;}entry.Used=++sequence;return Copy(entry.Page);
+   }
+  }
+  internal void Store(string query,int page,int size,ModelSearchPage result){
+   if(result==null||result.Items==null)throw new IOException("型号搜索结果不完整。");
+   var copy=Copy(result);
+   lock(gate){var now=utcNow();foreach(var key in pages.Where(pair=>pair.Value.Expires<=now).Select(pair=>pair.Key).ToArray())pages.Remove(key);
+    string wanted=Key(query,page,size);
+    if(!pages.ContainsKey(wanted)&&pages.Count>=capacity)pages.Remove(pages.OrderBy(pair=>pair.Value.Used).First().Key);
+    pages[wanted]=new Entry{Page=copy,Expires=now+lifetime,Used=++sequence};
+   }
+  }
  }
  public static class ModelSearchClient {
   public const int PageSize=10;

@@ -121,6 +121,9 @@ fn write_section_keys_stream(
     let mut bw = BinaryWriter::new(&mut buf);
     bw.write_i32(needs.len() as i32)?;
     for component in needs {
+        // Both SectionKeys strings carry a u32 block size and a Pascal byte
+        // length. A bare Pascal LibRef is accepted by the old local reader
+        // but causes Altium's native PCB loader to read an invalid size.
         bw.write_pascal_string_block(&component.name)?;
         let key = section_keys
             .get(&component.name)

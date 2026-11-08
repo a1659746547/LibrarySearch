@@ -9,7 +9,7 @@ use crate::error::{Error, Result};
 )]
 pub struct Args {
     /// One or more LCSC component IDs (e.g. C2040 C25744).
-    #[arg(long = "lcsc_id", num_args = 1.., required_unless_present_any = ["index_request", "search_index", "describe"])]
+    #[arg(long = "lcsc_id", num_args = 1.., required_unless_present_any = ["index_request", "search_index", "describe", "merge_libraries"])]
     pub lcsc_id: Vec<String>,
 
     /// Offline library folder scan requested by the desktop plugin.
@@ -19,6 +19,10 @@ pub struct Args {
     /// Search a segmented local catalog entirely offline.
     #[arg(long = "search-index", conflicts_with_all = ["lcsc_id", "index_request", "describe", "symbol", "footprint", "three_d", "full"])]
     pub search_index: Option<String>,
+
+    /// Merge downloaded pairs offline into one schematic and one PCB library.
+    #[arg(long = "merge-libraries", conflicts_with_all = ["lcsc_id", "index_request", "search_index", "describe", "symbol", "footprint", "three_d", "full", "cad_source"])]
+    pub merge_libraries: Option<String>,
 
     /// Fetch only verified supplier description, for background enrichment.
     #[arg(long, conflicts_with_all = ["lcsc_id", "index_request", "symbol", "footprint", "three_d", "full"])]
@@ -48,6 +52,9 @@ pub struct Args {
     /// Replace existing output files.
     #[arg(long)]
     pub overwrite: bool,
+
+    #[arg(long = "footprint-id")]
+    pub footprint_id: Option<String>,
 
     /// Cache API responses in ./.easyeda_cache/ to skip network on repeats.
     #[arg(long = "use-cache")]
@@ -89,6 +96,13 @@ pub struct Args {
 
 impl Args {
     pub fn validate(&self) -> Result<()> {
+        if let Some(identity) = &self.footprint_id {
+            if self.lcsc_id.len() != 1 || identity.is_empty() || identity.len() > 63
+                || !identity.bytes().all(|value| value.is_ascii_alphanumeric() || value == b'_')
+                || !(self.full || (self.symbol && self.footprint)) {
+                return Err(Error::InvalidArg("--footprint-id requires one component, a symbol/footprint pair, and 1-63 ASCII letters, digits or underscores".into()));
+            }
+        }
         for id in &self.lcsc_id {
             if !id.starts_with('C') {
                 return Err(Error::InvalidArg(format!(
