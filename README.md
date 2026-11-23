@@ -1,28 +1,27 @@
 # LibrarySearch
 
-在 Altium Designer 内搜索、获取和放置元件，连接在线库、本地库与已下载元件。
+LibrarySearch 是 Altium Designer 的开源元件库插件。在设计界面内搜索在线元件和本地库，获取原理图符号、PCB 封装及可用的 3D 模型，并将元件放入当前设计。
 
-[官网下载](https://ad.kn21.xyz/download.html) · [GitHub Releases](https://github.com/a1659746547/LibrarySearch/releases) · [反馈问题](https://github.com/a1659746547/LibrarySearch/issues)
+**[下载 LibrarySearch](https://ad.kn21.xyz/download.html)** · [更新记录](CHANGELOG.md) · [反馈问题](https://github.com/a1659746547/LibrarySearch/issues) · [赞助开发](https://ad.kn21.xyz/sponsor.html)
 
-<a href="docs/images/librarysearch.png"><img src="docs/images/librarysearch.png" alt="LibrarySearch 面板，点击查看原图" height="480"></a>
+## 主要功能
 
-当前正式版：**[1.1.4](https://github.com/a1659746547/LibrarySearch/releases/tag/v1.1.4)**。
+- **在线库**　按厂商料号、制造商或立创商城 C 编号查找元件，获取并放置原理图符号或 PCB 封装。
+- **本地库**　搜索已有的 `.SchLib`、`.PcbLib` 和 `.IntLib` 文件。
+- **已下载**　复用下载过的元件，管理缓存，并按需补齐可用的 3D 模型。[已下载总库说明](plugin/docs/已下载总库说明.md)
 
-## 功能
+<a href="docs/images/librarysearch.png"><img src="docs/images/librarysearch.png" alt="LibrarySearch 元件搜索面板，点击查看原图" height="480"></a>
 
-- 在线搜索型号、厂家或 C 编号，获取配套原理图符号和 PCB 封装。
-- 自动扫描本地 SchLib、PcbLib、IntLib，支持大库搜索。
-- 管理已下载元件、批量删除缓存；默认获取可用 3D 模型，可在设置中关闭或单独补齐。
-- 所有已下载元件自动组成配套总库，工程复用固定的符号库和封装库文件，参见[总库说明](plugin/docs/已下载总库说明.md)。
-- 默认采用 AD 外观，提供可选的符号视觉设置。
-- 兼容多版本 AD，使用同一个 Install.cmd，安装器自动选择对应插件。其他版本可尝试兼容安装并自行验证。
+## 安装和使用
 
-## 安装
+**安装包支持 Altium Designer 18、19、20、21、24、25、26。** 统一安装器会根据所选版本安装对应插件。
 
-1. 从 Releases 或官网下载完整安装包。GitHub 的自动源码 ZIP 是开发源码，不是安装包。
-2. 保存工程，关闭全部 AD 实例。
-3. 完整解压安装包，运行 **Install.cmd**，选择目标 AD。
-4. 打开 AD，在 **Panels → LibrarySearch** 中启用面板。
+1. 下载并完整解压 `LibrarySearch-1.1.6.zip`。[官网下载](https://ad.kn21.xyz/download.html)
+2. 保存工程并关闭所有 Altium Designer 窗口，运行 **Install.cmd**，按提示选择目标版本。
+3. 重新打开 Altium Designer，从 **Panels → LibrarySearch** 打开面板。
+4. 搜索元件并选择原理图符号或 PCB 封装，点击对应的放置按钮。
+
+投板前请按器件规格书核对符号引脚、封装焊盘和 3D 模型方向。
 
 旧接口使用 .NET Framework 4.8+；现代接口使用 AD 自带的 .NET 6/8。转换器需要 Microsoft Visual C++ x64 运行库。用户不需要安装开发 SDK。
 
