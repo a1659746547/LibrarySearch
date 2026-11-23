@@ -7,11 +7,11 @@ use crate::easyeda::canvas::ee_px_to_coord;
 use crate::easyeda::types::*;
 
 fn ee_layer_allowed_for_solid_region(layer_id: i32) -> bool {
-    matches!(layer_id, 3 | 4 | 13 | 14 | 99)
+    matches!(layer_id, 3 | 4 | 13 | 14 | 15)
 }
 
-fn ee_layer_to_altium(layer_id: i32) -> i32 {
-    match layer_id {
+fn ee_layer_to_altium(layer_id: i32) -> Option<i32> {
+    Some(match layer_id {
         1 => 1,
         2 => 32,
         3 => 33,
@@ -22,16 +22,14 @@ fn ee_layer_to_altium(layer_id: i32) -> i32 {
         8 => 38,
         10 => 56,
         11 => 74,
-        12 => 57,
         13 => 69,
         14 => 70,
         15 => 71,
-        99 => 57,
-        _ => 57,
-    }
+        _ => return None,
+    })
 }
 
-pub fn convert_footprint(ee: &EeFootprint) -> Component {
+pub fn convert_footprint(ee: &EeFootprint) -> crate::Result<Component> {
     let ox = ee.bbox_x;
     let oy = ee.bbox_y;
 
@@ -53,6 +51,9 @@ pub fn convert_footprint(ee: &EeFootprint) -> Component {
     }
 
     for p in &ee.pads {
+        if !matches!(p.layer_id, 1 | 2 | 11) {
+            return Err(crate::Error::Convert(format!("unsupported pad layer {} for pad {}", p.layer_id, p.number)));
+        }
         comp.pads.push(convert_pad(p, ox, oy));
     }
     for t in &ee.tracks {
@@ -66,16 +67,17 @@ pub fn convert_footprint(ee: &EeFootprint) -> Component {
             .extend(via_to_marker_tracks(v, ox, oy));
     }
     for c in &ee.circles {
-        comp.arcs.push(convert_circle(c, ox, oy));
+        if let Some(arc) = convert_circle(c, ox, oy) { comp.arcs.push(arc); }
     }
     for a in &ee.arcs {
+        let Some(layer) = ee_layer_to_altium(a.layer_id) else { continue; };
         if let Some(arc) = convert_arc(a, ox, oy) {
             comp.arcs.push(arc);
         } else if let Some(paths) = crate::easyeda::geometry::path_polylines(&a.raw_path) {
             for path in paths {
                 for pair in path.windows(2) {
                     let mut track = Track::default();
-                    track.layer = ee_layer_to_altium(a.layer_id);
+                    track.layer = layer;
                     track.start = CoordPoint::new(ee_px_to_coord(pair[0].0 - ox), -ee_px_to_coord(pair[0].1 - oy));
                     track.end = CoordPoint::new(ee_px_to_coord(pair[1].0 - ox), -ee_px_to_coord(pair[1].1 - oy));
                     track.width = ee_px_to_coord(a.stroke_width.max(0.01));
@@ -90,7 +92,7 @@ pub fn convert_footprint(ee: &EeFootprint) -> Component {
         comp.tracks.extend(convert_rectangle(r, ox, oy));
     }
     for t in &ee.texts {
-        comp.texts.push(convert_text(t, ox, oy));
+        if let Some(text) = convert_text(t, ox, oy) { comp.texts.push(text); }
     }
     for sr in &ee.solid_regions {
         if let Some(region) = convert_solid_region(sr, ox, oy) {
@@ -106,7 +108,7 @@ pub fn convert_footprint(ee: &EeFootprint) -> Component {
         }
     }
 
-    comp
+    Ok(comp)
 }
 
 fn component_bbox_outline(comp: &altium::pcb::Component) -> Vec<CoordPoint> {
@@ -167,7 +169,7 @@ pub fn make_model_entry(ee_model: &Ee3dModel, raw_step: Vec<u8>) -> Model3d {
 }
 
 fn convert_pad(p: &EeFootprintPad, ox: f64, oy: f64) -> Pad {
-    let layer = ee_layer_to_altium(p.layer_id);
+    let layer = ee_layer_to_altium(p.layer_id).expect("validated electrical pad layer");
     let shape = match p.shape.to_uppercase().as_str() {
         "ELLIPSE" => PadShape::Round,
         "RECT" => PadShape::Rectangular,
@@ -251,7 +253,7 @@ fn convert_npth_hole(h: &EeFootprintHole, ox: f64, oy: f64) -> Pad {
 
 fn convert_track(t: &EeFootprintTrack, ox: f64, oy: f64) -> Vec<Track> {
     let pts = parse_point_pairs(&t.points);
-    let layer = ee_layer_to_altium(t.layer_id);
+    let Some(layer) = ee_layer_to_altium(t.layer_id) else { return Vec::new(); };
     let width = ee_px_to_coord(t.stroke_width.max(0.01));
     let mut out = Vec::with_capacity(pts.len().saturating_sub(1));
     for w in pts.windows(2) {
@@ -276,9 +278,9 @@ fn via_to_marker_tracks(_v: &EeFootprintVia, _ox: f64, _oy: f64) -> Vec<Track> {
     Vec::new()
 }
 
-fn convert_circle(c: &EeFootprintCircle, ox: f64, oy: f64) -> Arc {
+fn convert_circle(c: &EeFootprintCircle, ox: f64, oy: f64) -> Option<Arc> {
     let mut a = Arc::default();
-    a.layer = ee_layer_to_altium(c.layer_id);
+    a.layer = ee_layer_to_altium(c.layer_id)?;
     a.center = CoordPoint::new(
         ee_px_to_coord(c.cx - ox),
         -ee_px_to_coord(c.cy - oy),
@@ -288,11 +290,11 @@ fn convert_circle(c: &EeFootprintCircle, ox: f64, oy: f64) -> Arc {
     a.end_angle = 360.0;
     a.width = ee_px_to_coord(c.stroke_width.max(0.01));
     a.enabled = true;
-    a
+    Some(a)
 }
 
 fn convert_rectangle(r: &EeFootprintRect, ox: f64, oy: f64) -> Vec<Track> {
-    let layer = ee_layer_to_altium(r.layer_id);
+    let Some(layer) = ee_layer_to_altium(r.layer_id) else { return Vec::new(); };
     let width = ee_px_to_coord(r.stroke_width.max(0.01));
     let x0 = ee_px_to_coord(r.x - ox);
     let y0 = -ee_px_to_coord(r.y - oy);
@@ -315,8 +317,8 @@ fn convert_rectangle(r: &EeFootprintRect, ox: f64, oy: f64) -> Vec<Track> {
     ]
 }
 
-fn convert_text(t: &EeFootprintText, ox: f64, oy: f64) -> Text {
-    let layer = ee_layer_to_altium(t.layer_id);
+fn convert_text(t: &EeFootprintText, ox: f64, oy: f64) -> Option<Text> {
+    let layer = ee_layer_to_altium(t.layer_id)?;
     let mut text = Text::default();
     text.layer = layer;
     text.text = t.text.clone();
@@ -331,7 +333,7 @@ fn convert_text(t: &EeFootprintText, ox: f64, oy: f64) -> Text {
     text.is_comment = t.kind == "N";
     text.font_name = Some("Arial".to_string());
     text.is_hidden = !t.is_displayed;
-    text
+    Some(text)
 }
 
 fn convert_arc(a: &EeFootprintArc, ox: f64, oy: f64) -> Option<Arc> {
@@ -339,7 +341,7 @@ fn convert_arc(a: &EeFootprintArc, ox: f64, oy: f64) -> Option<Arc> {
     let geometry = spec.geometry()?;
     let (start_angle, end_angle) = geometry.altium_angles()?;
     let mut arc = Arc::default();
-    arc.layer = ee_layer_to_altium(a.layer_id);
+    arc.layer = ee_layer_to_altium(a.layer_id)?;
     arc.center = CoordPoint::new(ee_px_to_coord(geometry.center.0 - ox), -ee_px_to_coord(geometry.center.1 - oy));
     arc.radius = ee_px_to_coord(geometry.rx);
     arc.start_angle = start_angle;
@@ -356,7 +358,7 @@ fn convert_solid_region(sr: &EeFootprintSolidRegion, ox: f64, oy: f64) -> Option
     if !ee_layer_allowed_for_solid_region(sr.layer_id) {
         return None;
     }
-    let layer = ee_layer_to_altium(sr.layer_id);
+    let layer = ee_layer_to_altium(sr.layer_id)?;
     let pts = parse_svg_path_to_points(&sr.raw_path);
     if pts.len() < 3 {
         eprintln!("warning: unsupported footprint region path; no partial geometry emitted");
@@ -476,7 +478,7 @@ mod tests {
     fn elliptical_footprint_arc_is_flattened_without_a_circle_guess() {
         let mut source=EeFootprint::default();
         source.arcs.push(EeFootprintArc{stroke_width:0.5,layer_id:3,raw_path:"M10,0A10,5 0 0 1 0,5".into()});
-        let converted=convert_footprint(&source);
+        let converted=convert_footprint(&source).unwrap();
         assert!(converted.arcs.is_empty());
         assert!(converted.tracks.len()>2);
         assert_eq!(converted.tracks.first().unwrap().start.x,ee_px_to_coord(10.0));

@@ -4,6 +4,7 @@ using System.Text;
 using System.Linq;
 using System.Drawing;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using System.Collections.Generic;
@@ -58,7 +59,42 @@ namespace LibrarySearch {
   }
   protected override void OnParentChanged(EventArgs e){base.OnParentChanged(e);if(scrollBar!=null&&!scrollBar.IsDisposed){scrollBar.Parent=Parent;scrollBar.RefreshFromOwner();}}
   protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(scrollBar!=null)scrollBar.RefreshFromOwner();}
-  protected override void WndProc(ref Message message){base.WndProc(ref message);if(scrollBar!=null){if(message.Msg==0xF||message.Msg==0x85||message.Msg==5||message.Msg==0x115||message.Msg==0x20A||message.Msg==0x101||message.Msg==0x102F||message.Msg==0x1014||message.Msg==0x317)scrollBar.RefreshFromOwner();if(message.Msg==0xF||message.Msg==0x85||message.Msg==0x317)scrollBar.PaintOnOwner(message.Msg==0x317?message.WParam:IntPtr.Zero);}}
+  protected override void WndProc(ref Message message){
+   base.WndProc(ref message);
+   if(message.Msg==0x004E && message.LParam!=IntPtr.Zero) PaintHeaderGutter(ref message); // WM_NOTIFY
+   if(scrollBar!=null){if(message.Msg==0xF||message.Msg==0x85||message.Msg==5||message.Msg==0x115||message.Msg==0x20A||message.Msg==0x101||message.Msg==0x102F||message.Msg==0x1014||message.Msg==0x317)scrollBar.RefreshFromOwner();if(message.Msg==0xF||message.Msg==0x85||message.Msg==0x317)scrollBar.PaintOnOwner(message.Msg==0x317?message.WParam:IntPtr.Zero);}
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  struct Notification {public IntPtr Sender,Id;public int Code;}
+  [StructLayout(LayoutKind.Sequential)]
+  struct CustomDraw {public Notification Header;public int Stage;public IntPtr Dc;}
+  [StructLayout(LayoutKind.Sequential)]
+  struct NativeRect {public int Left,Top,Right,Bottom;}
+  [DllImport("user32.dll")]
+  static extern IntPtr SendMessage(IntPtr window,int message,IntPtr wParam,IntPtr lParam);
+  [DllImport("user32.dll")]
+  static extern bool GetClientRect(IntPtr window,out NativeRect rect);
+
+  void PaintHeaderGutter(ref Message message){
+   var notice=Marshal.PtrToStructure<Notification>(message.LParam);
+   if(notice.Code!=-12 || notice.Sender!=SendMessage(message.HWnd,0x101F,IntPtr.Zero,IntPtr.Zero))return; // NM_CUSTOMDRAW from LVM_GETHEADER
+   var draw=Marshal.PtrToStructure<CustomDraw>(message.LParam);
+   if(draw.Stage==1){ // CDDS_PREPAINT: keep WinForms item drawing and request the final pass.
+    message.Result=new IntPtr(message.Result.ToInt64()|0x10);
+   }else if(draw.Stage==2 && draw.Dc!=IntPtr.Zero){
+    NativeRect rect;
+    if(!GetClientRect(notice.Sender,out rect) || rect.Bottom<=0)return;
+    int left=0;
+    foreach(ColumnHeader column in Columns)left+=column.Width;
+    if(left>=rect.Right)return;
+    using(var graphics=Graphics.FromHdc(draw.Dc))
+    using(var background=new SolidBrush(PanelTheme.Header))
+    using(var border=new Pen(PanelTheme.Border)){
+     graphics.FillRectangle(background,left,0,rect.Right-left,rect.Bottom);
+     graphics.DrawLine(border,left,rect.Bottom-1,rect.Right-1,rect.Bottom-1);
+    }
+   }
+  }
   protected override void OnFontChanged(EventArgs e){base.OnFontChanged(e);if(rowImages!=null)rowImages.ImageSize=new Size(1,Math.Max(24,Font.Height+12));}
   protected override void OnDrawColumnHeader(DrawListViewColumnHeaderEventArgs e){
    using(var brush=new SolidBrush(PanelTheme.Header))e.Graphics.FillRectangle(brush,e.Bounds);
@@ -181,6 +217,8 @@ namespace LibrarySearch {
  }
 
  public sealed class LibraryPanel : UserControl {
+  const string OnlineSearchHint="制造商、型号或立创料号";
+  const string OnlineSearchEmpty="搜索元件\r\n例如：TI、TP4057、C7473159";
   static readonly Color Ink=PanelTheme.Ink,Muted=PanelTheme.Muted,Accent=PanelTheme.Selection,Surface=PanelTheme.Surface;
   readonly string distribution;
   UserSettings settings;
@@ -238,8 +276,9 @@ namespace LibrarySearch {
    if(!string.IsNullOrWhiteSpace(distributionRoot)){
     var parent=Directory.GetParent(Path.GetFullPath(distributionRoot));
     if(parent!=null&&parent.Name.Equals("LibrarySearchBeta",StringComparison.OrdinalIgnoreCase)){
-     string current=Path.Combine(parent.FullName,ReleaseInfo.Version);
-     if(File.Exists(Path.Combine(current,"Release.psd1"))&&File.Exists(Path.Combine(current,"online","bin","easyeda2altium.exe")))distributionRoot=current;
+     string current=Path.Combine(parent.FullName,ReleaseInfo.RuntimeFolder);
+     if(!File.Exists(Path.Combine(current,"Release.psd1"))||!File.Exists(Path.Combine(current,"online","bin","easyeda2altium.exe")))throw new IOException("运行文件不完整，请重新运行安装程序。");
+     distributionRoot=current;
     }
    }
    distribution=distributionRoot;UnifiedLibrary.Configure(Path.Combine(distribution,"online","bin","easyeda2altium.exe"));settings=initialSettings??UserSettings.Load();store=new LibraryStore(settings.LibraryRoot);
@@ -255,10 +294,10 @@ namespace LibrarySearch {
     int diameter=Math.Max(9,Math.Min(13,query.Font.Height-2)),top=(inputFrame.Height-diameter)/2-1;
     using(var pen=new Pen(Muted)){args.Graphics.DrawEllipse(pen,9,top,diameter-3,diameter-3);args.Graphics.DrawLine(pen,9+diameter-4,top+diameter-4,9+diameter,top+diameter);}
    };
-   query.BorderStyle=BorderStyle.None;query.BackColor=PanelTheme.Input;query.ForeColor=Ink;query.AccessibleName="元件编号或关键词";
+   query.BorderStyle=BorderStyle.None;query.BackColor=PanelTheme.Input;query.ForeColor=Ink;query.AccessibleName="元件搜索";
    query.Enter+=(sender,args)=>{UpdateInputHint();inputFrame.Invalidate();};query.Leave+=(sender,args)=>{UpdateInputHint();inputFrame.Invalidate();};
    query.KeyDown+=(sender,args)=>{if(args.KeyCode==Keys.Enter){SearchRequested(false);args.SuppressKeyPress=true;}};
-   query.TextChanged+=(sender,args)=>{CancelFiltering();UpdateInputHint();if(restoringSource||busy||nativeBusy)return;SetCandidateMode(false);if(source.SelectedIndex==0){if(online.Length>0&&!query.Text.Trim().Equals(online[0].Code,StringComparison.OrdinalIgnoreCase)){online=new LibraryRecord[0];SetResults(online);empty.Text="获取一个新元件\r\n输入型号、厂家搜索，或输入 C 编号直接获取";}}else{debounce.Stop();debounce.Start();}};
+   query.TextChanged+=(sender,args)=>{CancelFiltering();UpdateInputHint();if(restoringSource||busy||nativeBusy)return;SetCandidateMode(false);if(source.SelectedIndex==0){if(online.Length>0&&!query.Text.Trim().Equals(online[0].Code,StringComparison.OrdinalIgnoreCase)){online=new LibraryRecord[0];SetResults(online);empty.Text=OnlineSearchEmpty;}}else{debounce.Stop();debounce.Start();}};
    placeholder.BackColor=PanelTheme.Input;placeholder.ForeColor=Muted;placeholder.TextAlign=ContentAlignment.MiddleLeft;placeholder.AutoEllipsis=true;placeholder.Cursor=Cursors.IBeam;placeholder.Click+=(sender,args)=>query.Focus();
    inputFrame.Controls.Add(query);inputFrame.Controls.Add(placeholder);
    ConfigureButton(search,"获取",PanelButtonKind.Primary);search.Click+=(sender,args)=>SearchRequested(false);
@@ -280,7 +319,7 @@ namespace LibrarySearch {
    list.MouseUp+=(sender,args)=>{if(args.Button!=MouseButtons.Right||busy||nativeBusy)return;var hit=list.GetItemAt(args.X,args.Y);if(hit==null)return;if(!hit.Selected){list.SelectedIndices.Clear();hit.Selected=true;}ShowComponentMenu(args.Location);};
    list.KeyDown+=(sender,args)=>{if(args.KeyCode==Keys.Apps||(args.Shift&&args.KeyCode==Keys.F10)){ShowComponentMenu(new Point(12,28));args.SuppressKeyPress=true;}};
    list.KeyDown+=(sender,args)=>{if(args.Control&&args.KeyCode==Keys.A){SelectAllResults();args.SuppressKeyPress=true;}else if(args.KeyCode==Keys.Delete){DeleteSelectedCache();args.SuppressKeyPress=true;}else if(args.KeyCode==Keys.Enter){RequestPlace();args.SuppressKeyPress=true;}};
-   empty.Text="搜索型号、厂家或 C 编号\r\n例如 TP4057 / C7473159";
+   empty.Text=OnlineSearchEmpty;
    resultsFrame.Controls.Add(list);resultsFrame.Controls.Add(empty);
    modelResults.Visible=false;resultsFrame.Controls.Add(modelResults);
    modelResults.RunningChanged+=running=>{if(IsDisposed||Disposing)return;if(source.SelectedIndex==0)SetStatus(running?"正在搜索…":"选择元件后点击放置，或双击结果。",false);UpdateActions();};
@@ -305,7 +344,7 @@ namespace LibrarySearch {
    updateBanner.AutoEllipsis=true;updateBanner.LinkColor=PanelTheme.Focus;updateBanner.ActiveLinkColor=PanelTheme.Ink;updateBanner.VisitedLinkColor=PanelTheme.Focus;updateBanner.Visible=false;updateBanner.LinkClicked+=(sender,args)=>ShowAvailableUpdate();rootHost.Controls.Add(updateBanner);
    updateTimer.Interval=4000;updateTimer.Tick+=(sender,args)=>{updateTimer.Interval=60*60*1000;CheckWebsiteUpdate(false);};
    foreach(var control in new Control[]{query,source,list,search,more,cancel,place,open,name,meta,related,location,notice,status,pathHint})control.FontChanged+=(sender,args)=>{if(uiReady&&!layingOut)PerformLayout();};
-   tips.SetToolTip(query,"输入型号、厂家或 C 编号，按 Enter 搜索。");tips.SetToolTip(place,"放置所选元件；也可双击结果或按 Enter。");tips.SetToolTip(open,"在 AD 中打开元件库。");
+   tips.SetToolTip(place,"放置所选元件；也可双击结果或按 Enter。");tips.SetToolTip(open,"在 AD 中打开元件库。");
    debounce.Interval=100;debounce.Tick+=(sender,args)=>{debounce.Stop();FilterResults();};
    uiReady=true;StyleFilters();SetStatus("正在读取元件库…",false);SetResults(new LibraryRecord[0]);UpdateStorageHint();UpdateInputHint();UpdateActions();PerformLayout();
   }
@@ -322,7 +361,7 @@ namespace LibrarySearch {
    if(activeSource==2&&loaded&&!busy&&!localScanning&&LocalRoots.Length>0&&(DateTime.UtcNow-lastLocalScan).TotalMinutes>5)StartLocalScan(LocalRoots);
   }
   int CaptionWidth(Control control,int padding){return TextRenderer.MeasureText(control.Text,control.Font).Width+padding;}
-  void UpdateInputHint(){placeholder.Text=source.SelectedIndex==0?"搜索型号、厂家或 C 编号":source.SelectedIndex==2&&LocalRoots.Length==0&&local.Length==0?"选择本地库目录":"搜索名称、型号或 C 编号";placeholder.Visible=query.TextLength==0&&!query.Focused;placeholder.BringToFront();if(source.SelectedIndex==0)search.Text="搜索";}
+  void UpdateInputHint(){bool onlineSource=source.SelectedIndex==0,needsFolder=source.SelectedIndex==2&&LocalRoots.Length==0&&local.Length==0;string hint=onlineSource?OnlineSearchHint:needsFolder?"选择本地库目录":"名称、型号或立创料号";if(placeholder.Text!=hint){placeholder.Text=hint;tips.SetToolTip(query,needsFolder?hint:"输入"+hint+"，按 Enter 搜索。");}placeholder.Visible=query.TextLength==0&&!query.Focused;placeholder.BringToFront();if(onlineSource)search.Text="搜索";}
   void StyleFilters(){for(int i=0;i<filters.Length;i++)filters[i].Active=i==filter;}
   protected override void OnFontChanged(EventArgs e){base.OnFontChanged(e);if(uiReady&&!layingOut)PerformLayout();}
   protected override void OnLayout(LayoutEventArgs e){
@@ -426,7 +465,7 @@ namespace LibrarySearch {
   public void SetNativeBusy(bool value,string message){nativeBusy=value;SetStatus(message,false);UpdateActions();}
   void UpdateActions(){
    bool searching=source.SelectedIndex==0&&modelResults.Running;bool idle=loaded&&!busy&&!nativeBusy&&!searching;query.Enabled=idle&&!(source.SelectedIndex==2&&LocalRoots.Length==0&&local.Length==0);source.Enabled=loaded&&!busy&&!nativeBusy;search.Enabled=idle;foreach(var button in filters)button.Enabled=idle;list.Enabled=true;more.Enabled=idle;modelResults.ActionText=filter==2?"放置封装":"放置符号";
-   var selected=SelectedRecords;bool batch=selected.Length>1&&selected.All(row=>row.Package!=null);var record=SelectedRecord;place.Enabled=idle&&(record!=null||batch);open.Visible=record!=null;open.Enabled=idle&&record!=null;model.Visible=record!=null&&record.Package!=null;model.Enabled=idle&&model.Visible&&record.Package.Model3dStatus!="unavailable";model.Text=record!=null&&record.Package!=null&&record.Package.Model3dStatus=="embedded"?"查看封装":"获取 3D";
+   var selected=SelectedRecords;bool batch=selected.Length>1&&selected.All(row=>row.Package!=null);var record=SelectedRecord;bool valid=record!=null&&string.IsNullOrEmpty(record.ValidationError);place.Enabled=idle&&(valid||batch);open.Visible=record!=null;open.Enabled=idle&&valid;model.Visible=record!=null&&record.Package!=null;model.Enabled=idle&&model.Visible&&record.Package.Model3dStatus!="unavailable";model.Text=record!=null&&record.Package!=null&&record.Package.Model3dStatus=="embedded"&&valid?"查看封装":"获取 3D";
    bool catalogSearching=source.SelectedIndex==2&&localCatalog!=null&&filterCancellation!=null;
    search.Text=source.SelectedIndex==0?"获取":source.SelectedIndex==2&&LocalRoots.Length==0&&local.Length==0?"选择目录":"搜索";progress.Visible=busy||nativeBusy||searching||catalogSearching||(localScanning&&source.SelectedIndex==2);cancel.Visible=(busy&&cancellation!=null)||searching||catalogSearching||(localScanning&&source.SelectedIndex==2);cancel.Enabled=cancel.Visible;
    place.Text=nativeBusy?"画布放置中…":batch?"删除所选元件（"+selected.Select(row=>row.Code).Distinct().Count()+"）":record==null?"放置":record.Kind=="Symbol"?"放置符号":"放置封装";search.AccessibleName=search.Text;place.AccessibleName=place.Text;UpdateInputHint();if(pageHost.Visible)HideRootControls();if(uiReady)PerformLayout();
@@ -436,8 +475,8 @@ namespace LibrarySearch {
    if(record==null){name.Text="";description.Text="";meta.Text="";related.Text="";location.Text="";notice.Text="";if(uiReady)PerformLayout();return;}
    name.Text=record.DisplayName;description.Text=record.ShortDescription;tips.SetToolTip(description,record.ShortDescription+(record.Package!=null&&!string.IsNullOrWhiteSpace(record.Package.DescriptionSource)?"\r\n来源："+record.Package.DescriptionSource:""));meta.Text=record.Code+"   ·   "+record.KindLabel+"   ·   "+(record.Package==null?"本地库":"已保存"+(record.Package.Model3dStatus=="embedded"?" · 含 3D":"")+(record.Package.Appearance==null?"":" · "+record.Package.Appearance.Label));related.Text=(record.Kind=="Symbol"?"封装  ":"符号  ")+record.DisplayRelatedName;location.Text=record.SourcePath??record.FilePath;
    tips.SetToolTip(name,record.DisplayName);tips.SetToolTip(meta,meta.Text);tips.SetToolTip(location,(record.SourcePath??record.FilePath)+(record.SourcePath!=null&&record.SourcePath!=record.FilePath?"\r\n缓存库："+record.FilePath:""));tips.SetToolTip(related,related.Text);
-   string warning="";
-   if(record.Package!=null&&record.Package.AcquisitionVersion!=ReleaseInfo.Acquisition)warning+=" 请重新获取此元件，以使用最新的封装转换规则。";
+   string warning=record.ValidationError??"";
+   if(record.Package!=null&&!LibraryStore.CanReuseAcquisition(record.Package))warning+=" 请重新获取此元件，以使用最新的封装转换规则。";
    if(record.Package!=null&&!string.IsNullOrWhiteSpace(record.Package.Warning))warning+=" "+record.Package.Warning;
    if(record.Package!=null&&record.Package.PinGeometryVersion!="svg-line-1")warning+=" 旧版库可能存在引脚过长，请右键元件重新下载。";notice.Text=warning.Trim();selectionWarning=notice.Text.Length>0;tips.SetToolTip(notice,notice.Text);if(uiReady)PerformLayout();
   }
@@ -450,7 +489,7 @@ namespace LibrarySearch {
    ThreadPool.QueueUserWorkItem(delegate{
     try{var matches=catalog==null?LibraryRecordSearch.Find(rows,text,kind,selectedSource==0,token):text.Length==0&&kind==0?new LibrarySearchMatch{Records=rows.Take(500).ToArray(),Total=catalog.Count}:catalog.Search(text,kind,token);var visible=matches.Records;
     Post(delegate{if(version!=searchVersion||busy||nativeBusy)return;SetResults(visible);resultCount.Text=matches.Total>500?"前 500 / "+matches.Total:matches.Total+" 项";
-     if(visible.Length==0){empty.Text=selectedSource==0?"搜索型号、厂家或 C 编号\r\n例如 TP4057 / C7473159":selectedSource==1?(downloaded.Length==0?"还没有下载的元件\r\n在“在线库”中下载后，可在此离线查找":"没有匹配的元件\r\n试试型号、C 编号，或切换分类"):(local.Length==0?(LocalRoots.Length==0?"选择本地库文件夹\r\n自动扫描符号、封装和集成库，包含子目录":"未找到可用元件\r\n支持 SchLib、PcbLib、IntLib，可在“设置”重新选择目录"):"没有匹配结果，请调整关键词或分类");}
+     if(visible.Length==0){empty.Text=selectedSource==0?OnlineSearchEmpty:selectedSource==1?(downloaded.Length==0?"还没有下载的元件\r\n在“在线库”中下载后，可在此离线查找":"没有匹配的元件\r\n请调整关键词或切换分类"):(local.Length==0?(LocalRoots.Length==0?"选择本地库文件夹\r\n自动扫描符号、封装和集成库，包含子目录":"未找到可用元件\r\n支持 SchLib、PcbLib、IntLib，可在“设置”重新选择目录"):"没有匹配结果，请调整关键词或分类");}
      if(selectedSource==2&&localScanWarning)SetStatus("找到 "+matches.Total+" 个元件；部分库未读取，可从“设置”导出反馈查看详情。",true);else SetStatus(selectedSource==0?(online.Length==0?"就绪":"已保存符号和封装；放置前请核对外形与引脚。"):"找到 "+matches.Total+" 条记录；选择后可查看或放置。",false);
     });
     }catch(OperationCanceledException){}catch(Exception error){UserLog.Write("Filter library records",error);Post(delegate{if(version==searchVersion)SetStatus(error.Message,true);});}finally{Post(delegate{if(filterCancellation==operation)filterCancellation=null;operation.Dispose();UpdateActions();});}
@@ -480,7 +519,7 @@ namespace LibrarySearch {
      var fetched=FetchOptionsOverride!=null?FetchOptionsOverride(code,request3d,operation.Token):FetchOverride==null?currentStore.Fetch(code,Path.Combine(distribution,"online","bin","easyeda2altium.exe"),refresh,operation.Token,message=>Post(delegate{if(cancellation==operation)SetStatus(message,false);}),currentStyle,request3d):FetchOverride(code,operation.Token);var saved=previousDownloads.Where(record=>record.Code!=code).Concat(fetched.Records).OrderBy(record=>record.Code).ThenBy(record=>record.Kind).ToArray();
      Post(delegate{bool shouldPlace=placeAfter&&!operation.IsCancellationRequested;online=fetched.Records;downloaded=saved;busy=false;cancellation=null;operation.Dispose();SetResults(online.Where(record=>filter==0||record.Kind==(filter==1?"Symbol":"Footprint")).ToArray());int index=Array.FindIndex(results,row=>row.Kind==placementKind);if(index<0&&results.Length>0)index=0;if(index>=0)list.SelectedIndices.Add(index);SetStatus(include3d?(fetched.Records[0].Package.Model3dStatus=="embedded"?"3D 模型已保存，可打开封装查看。":"该元件暂无可用 3D 模型，符号与封装仍可使用。"):"元件已就绪。",false);UpdateActions();StartDescriptionFetch(fetched.Records[0],currentStore,refresh);if(shouldPlace){try{if(PlacementContext!=null&&!string.Equals(expectedContext,PlacementContext(placementKind),StringComparison.Ordinal)){ShowUserMessage("请重新选择放置位置","当前文档或工程已改变。元件已下载，请激活目标文档后重新放置。");return;}RequestPlace();}catch(Exception error){ShowUserMessage("放置元件",error.Message);}}});
     }catch(OperationCanceledException){Post(delegate{busy=false;cancellation=null;operation.Dispose();empty.Text="已取消获取\r\n输入新的编号即可重试";SetStatus("已取消。已有库文件保持可用。",false);UpdateActions();});}
-    catch(Exception error){UserLog.Write("Fetch "+code,error);Post(delegate{busy=false;cancellation=null;operation.Dispose();empty.Text="暂时无法获取元件\r\n请检查 C 编号和网络，或从“设置”导出反馈";SetStatus(error.Message,true);UpdateActions();});}
+    catch(Exception error){UserLog.Write("Fetch "+code,error);Post(delegate{busy=false;cancellation=null;operation.Dispose();empty.Text="暂时无法获取元件\r\n请核对立创料号和网络连接，或从“设置”导出反馈";SetStatus(error.Message,true);UpdateActions();});}
    });
   }
   void StartDescriptionFetch(LibraryRecord record,LibraryStore target,bool refresh=false){
@@ -501,6 +540,7 @@ namespace LibrarySearch {
   }
   void RequestPlace(){
    if(busy||nativeBusy)return;var record=SelectedRecord;if(record==null||PlaceRequested==null)return;
+   if(!string.IsNullOrWhiteSpace(record.ValidationError)){ShowUserMessage("请重新获取此元件",record.ValidationError);return;}
    bool preparedHost=PreparePlacementOverride!=null||RefreshLibrariesOverride!=null||(UnifiedLibrary.Enabled&&HostLibraryRefresh.Available);
    if(record.Package==null||PlacementContext==null||!preparedHost){PlaceRequested(record);return;}
    string context,project;
@@ -510,12 +550,12 @@ namespace LibrarySearch {
     ProjectFiles files=null;Exception failure=null;try{files=prepare==null?LibraryStore.CopyToProject(record,project):prepare(record,project);}catch(Exception error){failure=error;}
     Post(delegate{
      try{
-      if(failure!=null)throw failure;
+      if(failure!=null)System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
       if(!string.Equals(context,PlacementContext(record.Kind),StringComparison.Ordinal)||SelectedRecord!=record){SetStatus("当前文档、工程或元件已改变，请重新放置。",true);return;}
-      SetStatus("正在刷新 AD 元件库…",false);hostLibraryRefresh.Refresh(files,RefreshLibrariesOverride);
+      SetStatus("正在刷新 AD 元件库…",false);hostLibraryRefresh.Refresh(files,RefreshLibrariesOverride,context);
       // Recheck after the native refresh, which may pump AD's message loop.
       if(!string.Equals(context,PlacementContext(record.Kind),StringComparison.Ordinal)||SelectedRecord!=record){SetStatus("当前文档、工程或元件已改变，请重新放置。",true);return;}
-      busy=false;UpdateActions();PlaceRequested(record);
+      busy=false;UpdateActions();PlaceRequested(files.PlacementName==null?record:record.ForProjectPart(files.PlacementName));
      }catch(Exception error){UserLog.Write("Prepare and refresh project libraries",error);SetStatus("未能放置："+error.Message,true);}
      finally{busy=false;UpdateActions();}
     });
@@ -563,7 +603,7 @@ namespace LibrarySearch {
   void ShowMore(){
    if(IsDisposed||Disposing||busy||nativeBusy)return;
    var commands=new Dictionary<string,Action>{
-    {"changeRoot",ChangeRoot},{"openRoot",()=>OpenFolder(store.Root)},{"reload",ReloadLibraries},
+    {"changeRoot",ChangeRoot},{"openRoot",()=>OpenFolder(store.Root)},{"reload",ReloadLibraries},{"repairUnified",RepairDownloadedLibrary},
     {"chooseLocal",ChooseLocalLibraryFolder},{"scanLocal",()=>StartLocalScan(LocalRoots,true)},{"appearance",ChooseAppearance},
     {"checkUpdate",()=>CheckWebsiteUpdate(true)},{"website",()=>OpenWebsite("download.html")},{"help",OpenHelp},{"onlineHelp",()=>OpenWebsite("guide.html")},
     {"notice",()=>ShowUsageNotice(false)},{"feedback",ExportFeedback},{"logs",()=>OpenFolder(UserLog.Folder)},
@@ -636,8 +676,19 @@ namespace LibrarySearch {
    });
   }
   void FetchModelForSelected(){
-   if(busy||nativeBusy)return;var record=SelectedRecord;if(record==null||record.Package==null)return;if(record.Package.Model3dStatus=="embedded"&&record.Package.AcquisitionVersion==ReleaseInfo.Acquisition){RequestOpenLibrary(new LibraryStore(record.LibraryRoot).Records(record.Package,true).First(row=>row.Kind=="Footprint"));return;}string code=record.Code;var style=record.Package.Appearance;
+   if(busy||nativeBusy)return;var record=SelectedRecord;if(record==null||record.Package==null)return;if(string.IsNullOrWhiteSpace(record.ValidationError)&&record.Package.Model3dStatus=="embedded"&&LibraryStore.CanReuseAcquisition(record.Package)){RequestOpenLibrary(new LibraryStore(record.LibraryRoot).Records(record.Package,true).First(row=>row.Kind=="Footprint"));return;}string code=record.Code;var style=record.Package.Appearance;
    if(source.SelectedIndex!=0){source.SelectedIndex=0;query.Text=record.DisplayName;}SetCandidateMode(false);AcquireComponent(false,true,style,false,code);
+  }
+  void RepairDownloadedLibrary(){
+   if(busy||nativeBusy)return;
+   var notice=new NoticePage("将先完整备份当前总库，再根据已下载元件重建。\r\n\r\n如果你在总库中手工修改过元件，修改后的文件将保存在 Unified\\Backups 中，可从备份取回。\r\n\r\n请先关闭 AD 中打开的 LibrarySearch.SchLib 和 LibrarySearch.PcbLib。","备份并重建");
+   notice.Accepted+=()=>Post(delegate{
+    pageHost.ClosePage();busy=true;UpdateActions();SetStatus("正在备份并重建总库…",false);
+    var current=store;ThreadPool.QueueUserWorkItem(delegate{
+     string backup=null;Exception failure=null;try{backup=UnifiedLibrary.RepairDownloaded(current,CancellationToken.None,null);}catch(Exception error){failure=error;UserLog.Write("Repair downloaded library",error);}
+     Post(delegate{busy=false;UpdateActions();if(failure!=null){ShowUserMessage("总库重建未完成",failure.Message);return;}ReloadLibraries();ShowUserMessage("总库已重建","原总库已备份到：\r\n"+backup+"\r\n\r\n请重新放置元件；已有 PCB 元件需要在 AD 中更新封装。");});
+    });
+   });ShowPanelPage("修复已下载总库",notice);
   }
   void SelectAllResults(){
    if(busy||nativeBusy)return;selectionChanging=true;list.BeginUpdate();try{for(int index=0;index<results.Length;index++)list.SelectedIndices.Add(index);}finally{list.EndUpdate();selectionChanging=false;}ShowSelection();UpdateActions();

@@ -13,6 +13,7 @@ class NativeRefreshTests {
  static void Wait(Func<bool> done){var end=DateTime.UtcNow.AddSeconds(20);while(!done()){if(DateTime.UtcNow>end)throw new Exception("UI wait timeout");Application.DoEvents();Thread.Sleep(5);}Application.DoEvents();}
  [STAThread] static int Main(string[] args){try{
   string root=Path.GetFullPath(args[0]);Directory.CreateDirectory(root);var sdk=Assembly.LoadFrom(Path.GetFullPath(args[2]));var utils=sdk.GetType("DXP.Utils");Func<int> calls=()=> (int)utils.GetField("Calls").GetValue(null);int ui=Thread.CurrentThread.ManagedThreadId,placed=0,prepared=0;string revision="one",project=Path.Combine(root,"test.PrjPcb");string context=Path.Combine(root,"test.SchDoc")+"\n"+project+"\nSCH";
+  sdk.GetType("DXP.TestProject").GetField("ProjectPath").SetValue(null,project);
   using(var form=new Form{ShowInTaskbar=false,Left=-20000,Top=-20000,StartPosition=FormStartPosition.Manual})using(var panel=new LibraryPanel(args[1],new UserSettings{LibraryRoot=Path.Combine(root,"downloads"),UsageNoticeVersion=1})){
    form.Controls.Add(panel);form.Show();((System.Windows.Forms.Timer)Get(panel,"updateTimer")).Stop();Wait(()=>(bool)Get(panel,"loaded")&&!(bool)Get(panel,"busy"));
    var record=new LibraryRecord{Name="U_TEST",Kind="Symbol",Code="C1",RelatedName="PKG",Description="test",Package=new LibraryPackage{SymbolName="TEST",PackageName="PKG"}};

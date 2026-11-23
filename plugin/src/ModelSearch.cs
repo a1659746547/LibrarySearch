@@ -54,7 +54,7 @@ namespace LibrarySearch {
   public static bool IsCode(string value){return Regex.IsMatch((value??"").Trim(),@"\AC[0-9]{1,12}\z",RegexOptions.IgnoreCase);}
   public static string ValidateQuery(string value){
    string query=(value??"").Trim();
-   if(query.Length<2||query.Length>100||query.Any(char.IsControl))throw new ArgumentException("请输入 2–100 个字符的型号、厂家或 C 编号。");
+   if(query.Length<2||query.Length>100||query.Any(char.IsControl))throw new ArgumentException("请输入 2–100 个字符的搜索关键词。");
    return query;
   }
   static string Text(Dictionary<string,object> row,params string[] keys){
@@ -65,7 +65,7 @@ namespace LibrarySearch {
   public static ModelSearchPage Parse(string json,int page,int pageSize){
    var root=new JavaScriptSerializer{MaxJsonLength=8*1024*1024,RecursionLimit=128}.DeserializeObject(json) as Dictionary<string,object>;
    object raw;int status;
-   if(root==null||!root.TryGetValue("code",out raw)||!int.TryParse(Convert.ToString(raw),out status)||status!=200)throw new IOException("型号搜索服务未返回成功结果，请稍后重试，或直接输入 C 编号。");
+   if(root==null||!root.TryGetValue("code",out raw)||!int.TryParse(Convert.ToString(raw),out status)||status!=200)throw new IOException("暂时无法搜索，请稍后重试，或直接输入立创料号。");
    if(!root.TryGetValue("result",out raw))throw new IOException("型号搜索结果格式已变化。");
    var result=raw as Dictionary<string,object>;
    if(result==null||!result.TryGetValue("productList",out raw)||!(raw is object[]))throw new IOException("型号搜索结果格式已变化。");

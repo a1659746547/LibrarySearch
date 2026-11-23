@@ -22,7 +22,7 @@ class UnifiedRecoveryTests {
   Check(index.Select(LibraryStore.Hash).SequenceEqual(hashes),"recovery leaves original package indices and download identities untouched");
   var records=store.LoadDownloaded();Check(records.Length==after.Symbols+after.Footprints,"all downloaded records remain available after recovery");
   var selected=records.First(r=>r.Kind=="Symbol"&&r.Code=="C365735");LibraryStore.CopyToProject(selected,project);
-  var projectState=Json.Read<State>(Path.Combine(projectLib,"state.json"));Check(projectState.Signature.StartsWith("project-3-")&&projectState.Symbols==after.Symbols,"a project containing the old rc3 total is rebuilt before placement");
+  var projectState=Json.Read<State>(Path.Combine(projectLib,"state.json"));Check(projectState.Signature.StartsWith("project-6-pcb-storage-")&&projectState.Symbols==after.Symbols,"a project containing the old rc3 total is rebuilt before placement");
   Check(store.Records(selected.Package,true).Length==2,"original ES8316 source pair retains its recorded hashes");
   Console.WriteLine("RESULT "+checks+" unified recovery checks passed");Console.WriteLine("RECOVERED "+global);Console.WriteLine("RECOVERED "+projectLib);return 0;
  }catch(Exception e){Console.Error.WriteLine(e);return 1;}}

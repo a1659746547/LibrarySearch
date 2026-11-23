@@ -19,7 +19,7 @@ fn normal_pin_binary_marker_and_source_state_are_independent(){
   "P~hide~4~3~0~20~180~pin3~0^^0~20^^M0 20 h10~#000^^0~12~20~0~PWR~start~~~#000^^0~5~18~0~3~end~~~#000^^1~7~20^^1~M10 23L13 20L10 17",
  ] {parse_symbol_shape(shape,&mut source);}
  let library=library(&source);let rows=records(&library);let pins:Vec<_>=rows.iter().filter(|(flag,_)|*flag==1).collect();assert_eq!(pins.len(),3);
- for ((_,body),electrical) in pins.iter().zip([4,0,7]){let n=body[12] as usize;assert_eq!(body[13+n],1,"AD normal pin FormalType must be one");assert_eq!(body[14+n],electrical,"electrical source mapping is unchanged");}
+ for (_,body) in &pins{let n=body[12] as usize;assert_eq!(body[13+n],1,"AD normal pin FormalType must be one");assert_eq!(body[14+n],4,"all imported pins must encode AD Passive");}
  assert_eq!(&pins[0].1[8..12],&[0,0,0,0],"false decorations must stay normal");assert_eq!(pins[0].1[15]&0x18,0,"source-hidden labels stay hidden");
  assert_eq!(pins[1].1[15]&0x18,0x18,"visible source labels stay visible");assert_eq!(&pins[2].1[8..12],&[3,1,0,0],"only explicit source clock/inversion decorations survive");assert_eq!(pins[2].1[15]&4,4,"source hidden-pin flag is encoded in binary flags");
  let reopened=Library::from_bytes(library.to_bytes().unwrap()).unwrap();assert!(reopened.components[0].pins[2].is_hidden);

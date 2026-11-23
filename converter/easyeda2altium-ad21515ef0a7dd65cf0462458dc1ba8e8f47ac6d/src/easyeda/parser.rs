@@ -90,6 +90,7 @@ fn build_symbol_unit(
 ) -> Result<EeSymbol> {
     let info = EeSymbolInfo {
         name: sanitize_component_name(&safe_string(c_para.get("name").unwrap_or(&Value::Null))),
+        value: pick_str(c_para, &["Value", "value", "BOM_Value", "BOM_value"]),
         prefix: safe_string(c_para.get("pre").unwrap_or(&Value::Null)),
         package: safe_string(c_para.get("package").unwrap_or(&Value::Null)),
         manufacturer: pick_str(c_para, &["Manufacturer", "BOM_Manufacturer"]),
@@ -685,12 +686,63 @@ pub fn parse_footprint_shape(
         "SVGNODE" => {
             if parts.len() >= 2 {
                 if let Ok(v) = serde_json::from_str::<Value>(parts[1]) {
-                    if let Some(model) = parse_svgnode_model(&v, canvas_ox, canvas_oy) { fp.model_3d = Some(model); }
+                    if let Some(mut model) = parse_svgnode_model(&v, canvas_ox, canvas_oy) {
+                        model.projection_xy_mm = model_projection(&v, [fp.bbox_x, fp.bbox_y]);
+                        fp.model_3d = Some(model);
+                    }
                 }
             }
         }
         _ => {}
     }
+}
+
+fn model_projection(node: &Value, origin: [f64; 2]) -> Option<[[f64; 2]; 2]> {
+    fn untransformed(attrs: &Value) -> bool {
+        match attrs.get("transform").and_then(Value::as_str) {
+            None => true,
+            Some(raw) => matches!(
+                raw.replace(char::is_whitespace, "").as_str(),
+                "" | "scale(1)translate(0,0)" | "translate(0,0)" | "scale(1)"
+            ),
+        }
+    }
+    let root = node.get("attrs")?;
+    if root.get("c_etype")?.as_str()? != "outline3D" || !untransformed(root) {
+        return None;
+    }
+    let mut min = [f64::INFINITY; 2];
+    let mut max = [f64::NEG_INFINITY; 2];
+    let mut count = 0;
+    for child in node.get("childNodes")?.as_array()? {
+        if !matches!(child.get("nodeName")?.as_str()?, "polyline" | "polygon")
+            || child.get("childNodes").is_some_and(|n| n.as_array().is_none_or(|a| !a.is_empty()))
+        {
+            return None;
+        }
+        let attrs = child.get("attrs")?;
+        if !untransformed(attrs) {
+            return None;
+        }
+        let mut xy = attrs.get("points")?.as_str()?
+            .split(|c: char| c.is_ascii_whitespace() || c == ',')
+            .filter(|s| !s.is_empty());
+        while let Some(x) = xy.next() {
+            let point = [
+                (x.parse::<f64>().ok()? - origin[0]) * 0.254,
+                (origin[1] - xy.next()?.parse::<f64>().ok()?) * 0.254,
+            ];
+            if !point.iter().all(|v| v.is_finite()) {
+                return None;
+            }
+            for i in 0..2 {
+                min[i] = min[i].min(point[i]);
+                max[i] = max[i].max(point[i]);
+            }
+            count += 1;
+        }
+    }
+    (count >= 3 && (0..2).all(|i| max[i] > min[i])).then_some([min, max])
 }
 
 fn parse_svgnode_model(node: &Value, canvas_ox: f64, canvas_oy: f64) -> Option<Ee3dModel> {
@@ -725,6 +777,7 @@ fn parse_svgnode_model(node: &Value, canvas_ox: f64, canvas_oy: f64) -> Option<E
         rotation_x_deg: c_rot.first().copied().unwrap_or(0.0),
         rotation_y_deg: c_rot.get(1).copied().unwrap_or(0.0),
         rotation_z_deg: c_rot.get(2).copied().unwrap_or(0.0),
+        projection_xy_mm: None,
         raw_step: None,
     })
 }

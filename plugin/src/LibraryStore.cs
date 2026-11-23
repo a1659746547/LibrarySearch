@@ -37,9 +37,10 @@ namespace LibrarySearch.Serialization {
 
 namespace LibrarySearch {
  public static class ReleaseInfo {
-  public const string Version="1.1.4";
+  public const string Version="1.1.6";
+  public const string RuntimeFolder=Version+"-pcb3";
   public const string Title="LibrarySearch";
-  public const string Acquisition="source-pin-width-slot-path-6-paired-footprint";
+  public const string Acquisition="source-pin-width-slot-path-8-layers";
   public const string Format="ad-appearance-step-4";
   public const string StepFormat="ad-body-pin-curves-text-step-3";
   public const string PreviousFormat="ad-body-pin-curves-text-2";
@@ -147,6 +148,11 @@ namespace LibrarySearch {
   public string Model3dLabel {get{return Model3dStatus=="embedded"?"含 3D":"";}}
  }
  public sealed class LibraryRecord {
+  internal bool UseProjectPart;
+  internal LibraryRecord ForProjectPart(string name){
+   var placed=(LibraryRecord)MemberwiseClone();
+   placed.Name=name;placed.UseProjectPart=true;return placed;
+  }
   public string Name;
   public string Kind;
   public string FilePath;
@@ -157,9 +163,10 @@ namespace LibrarySearch {
   public string LibraryRoot;
   public string Description;
   public string PackageName;
+  public string ValidationError;
   public string DisplayName {get{return Package==null?Name:Kind=="Symbol"?Package.SymbolName:string.IsNullOrWhiteSpace(Package.PackageName)?Package.FootprintName:Package.PackageName;}}
   public string DisplayRelatedName {get{return Package==null?RelatedName:Kind=="Symbol"?(string.IsNullOrWhiteSpace(Package.PackageName)?Package.FootprintName:Package.PackageName):Package.SymbolName;}}
-  public string ShortDescription {get{return string.IsNullOrWhiteSpace(Description)?"暂无简介":Description;}}
+  public string ShortDescription {get{return !string.IsNullOrWhiteSpace(ValidationError)?"需重新获取 · "+ValidationError:string.IsNullOrWhiteSpace(Description)?"暂无简介":Description;}}
   public string KindLabel {get{return Kind=="Symbol"?"原理图符号":"PCB 封装";}}
  }
  public sealed class FetchResult {
@@ -185,6 +192,7 @@ namespace LibrarySearch {
   }
  }
  public sealed class ProjectFiles {
+  internal string PlacementName;
   public string SymbolPath;
   public string FootprintPath;
   public string Revision;
@@ -346,13 +354,20 @@ namespace LibrarySearch {
    return result;
   }
   string IndexPath(string code){return Path.Combine(root,"Index",Normalize(code)+".json");}
+  internal static bool CanReuseAcquisition(LibraryPackage package){
+   if(package.AcquisitionVersion==ReleaseInfo.Acquisition)return true;
+   return UnifiedLibrary.Enabled && package.Format==ReleaseInfo.Format && package.PinGeometryVersion=="svg-line-1" &&
+    (package.AcquisitionVersion=="source-pin-width-slot-path-6-paired-footprint" ||
+     package.AcquisitionVersion=="source-pin-width-slot-path-7-value");
+  }
   public LibraryRecord[] Records(LibraryPackage package,bool verifyHash){
    if(package==null||(package.Format!=ReleaseInfo.Format&&package.Format!=ReleaseInfo.StepFormat&&package.Format!=ReleaseInfo.PreviousFormat)||Normalize(package.Code)!=package.Code)throw new IOException("库索引版本需要更新，请重新获取该元件。");
    ValidateName(package.SymbolName);ValidateName(package.FootprintName);
    string folder=ContainedPath(root,package.RelativeFolder);
    string symbol=Path.Combine(folder,package.Code+".SchLib"),footprint=Path.Combine(folder,package.Code+".PcbLib");
    CheckLibrary(symbol);CheckLibrary(footprint);
-   if(verifyHash&&(Hash(symbol)!=package.SymbolHash||Hash(footprint)!=package.FootprintHash))throw new IOException("下载库的内容发生变化，请重新获取该元件。");
+   if(verifyHash&&Hash(symbol)!=package.SymbolHash)throw new IOException(package.Code+" 的符号文件与下载记录不一致，请右键重新获取该元件。");
+   if(verifyHash&&Hash(footprint)!=package.FootprintHash)throw new IOException(package.Code+" 的封装文件与下载记录不一致，请右键重新获取该元件。");
     string symbolName=UnifiedLibrary.Enabled?UnifiedLibrary.SymbolName(package):package.SymbolName,footprintName=UnifiedLibrary.Enabled?UnifiedLibrary.FootprintName(package):package.FootprintName;
     return new[]{new LibraryRecord{Name=symbolName,Kind="Symbol",FilePath=symbol,Code=package.Code,RelatedName=footprintName,Package=package,LibraryRoot=root,Description=CleanDescription(package.Description),PackageName=string.IsNullOrWhiteSpace(package.PackageName)?package.FootprintName:package.PackageName},new LibraryRecord{Name=footprintName,Kind="Footprint",FilePath=footprint,Code=package.Code,RelatedName=symbolName,Package=package,LibraryRoot=root,Description=CleanDescription(package.Description),PackageName=string.IsNullOrWhiteSpace(package.PackageName)?package.FootprintName:package.PackageName}};
   }
@@ -360,7 +375,7 @@ namespace LibrarySearch {
    var records=new List<LibraryRecord>();string index=Path.Combine(root,"Index");
    if(!Directory.Exists(index))return records.ToArray();
    foreach(string file in Directory.GetFiles(index,"C*.json")){
-    try{var package=Json.Read<LibraryPackage>(file);if(Path.GetFileNameWithoutExtension(file)!=package.Code)throw new IOException("索引编号不匹配。");records.AddRange(Records(package,false));}
+    try{var package=Json.Read<LibraryPackage>(file);if(Path.GetFileNameWithoutExtension(file)!=package.Code)throw new IOException("索引编号不匹配。");var rows=Records(package,false);try{Records(package,true);}catch(IOException error){foreach(var row in rows)row.ValidationError=error.Message;UserLog.Write("Downloaded pair needs refetch "+package.Code,error);}records.AddRange(rows);}
     catch(Exception error){UserLog.Write("Skip invalid downloaded index "+Path.GetFileName(file),error);}
    }
    return records.OrderBy(record=>record.Code).ThenBy(record=>record.Kind).ToArray();
@@ -384,7 +399,7 @@ namespace LibrarySearch {
    progress("正在检查本机已下载元件…");
    if(!refresh&&File.Exists(IndexPath(code))){
      LibraryRecord[] cached=null;
-     try{var stored=Json.Read<LibraryPackage>(IndexPath(code));if(stored.Format!=ReleaseInfo.Format||stored.AppearanceKey!=styleKey||stored.PinGeometryVersion!="svg-line-1"||stored.AcquisitionVersion!=ReleaseInfo.Acquisition||(include3d&&stored.Model3dStatus!="embedded"&&stored.Model3dStatus!="unavailable"))throw new IOException("将按修正后的引脚几何与所选外观重新获取。");cached=Records(stored,true);cancellation.ThrowIfCancellationRequested();}
+     try{var stored=Json.Read<LibraryPackage>(IndexPath(code));if(stored.Format!=ReleaseInfo.Format||stored.AppearanceKey!=styleKey||stored.PinGeometryVersion!="svg-line-1"||!CanReuseAcquisition(stored)||(include3d&&stored.Model3dStatus!="embedded"&&stored.Model3dStatus!="unavailable"))throw new IOException("将按修正后的引脚几何与所选外观重新获取。");cached=Records(stored,true);cancellation.ThrowIfCancellationRequested();}
     catch(OperationCanceledException){throw;}
     catch(Exception error){UserLog.Write("Download again "+code,error);}
      if(cached!=null){UnifiedLibrary.Ensure(this,cancellation,progress);return new FetchResult{Records=cached,Reused=true};}
@@ -523,7 +538,7 @@ namespace LibrarySearch {
   }
   public static ProjectFiles CopyToProject(LibraryRecord record,string projectPath){
    if(record.Package==null)throw new ArgumentException("该记录不是在线元件。");
-   if(record.Package.AcquisitionVersion!=ReleaseInfo.Acquisition)throw new IOException("此在线库尚未按新版核对长孔，请在设置中重新获取该 C 编号后再放置。旧工程库保持原样。");
+   if(!CanReuseAcquisition(record.Package))throw new IOException("此旧版库需要重新核对引脚和长孔。请右键选择“重新获取当前元件”后再放置。");
    if(!File.Exists(projectPath)||!Path.GetExtension(projectPath).Equals(".PrjPcb",StringComparison.OrdinalIgnoreCase))throw new IOException("请先保存目标 PCB 工程（PrjPcb）。");
     if(UnifiedLibrary.Enabled)return UnifiedLibrary.CopyToProject(record,projectPath);
    var source=new LibraryStore(record.LibraryRoot);var rows=source.Records(record.Package,true);var package=record.Package;

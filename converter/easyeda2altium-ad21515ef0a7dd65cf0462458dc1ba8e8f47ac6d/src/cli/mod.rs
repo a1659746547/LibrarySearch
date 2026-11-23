@@ -117,6 +117,8 @@ pub async fn run() -> Result<()> {
                 for implementation in &mut component.implementations {
                     if implementation.model_type.as_deref() == Some("PCBLIB") {
                         implementation.model_name = Some(identity.clone());
+                        implementation.data_file_kinds = vec!["PCBLib".into()];
+                        implementation.data_file_entities = vec![identity.clone()];
                     }
                 }
             }
@@ -137,10 +139,13 @@ pub async fn run() -> Result<()> {
             let source_model = ee_fp.model_3d.take();
             let mut model_status = if source_model.is_some() { "available" } else { "unavailable" };
             if want_3d || args.three_d_cached {
-                if let Some(model) = source_model {
+                if let Some(mut model) = source_model {
                     let step = if want_3d {api.get_step(&model.uuid).await} else {Ok(api.cached_step(&model.uuid))};
                     match step {
                         Ok(Some(step_bytes)) => {
+                            if crate::convert::model3d::align_xy_to_projection(&mut model, &step_bytes) {
+                                eprintln!("  model3d-alignment: XY ({:.4}, {:.4}) mm from source outline", model.translation_x_mm, model.translation_y_mm);
+                            }
                             match attach_3d_model(&mut pcb_library, &model, step_bytes) {
                                 Ok(()) => { ee_fp.model_3d = Some(model); model_status = "embedded"; }
                                 Err(error) => {
@@ -158,7 +163,7 @@ pub async fn run() -> Result<()> {
                 }
             }
             eprintln!("  model3d: {}", model_status);
-            let mut component = convert_footprint(&ee_fp);
+            let mut component = convert_footprint(&ee_fp)?;
             if let Some(identity) = &args.footprint_id {
                 component.name = identity.clone();
                 eprintln!("  footprint-identity: {}", identity);

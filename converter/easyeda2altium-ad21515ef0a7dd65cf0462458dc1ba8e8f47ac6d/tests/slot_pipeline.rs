@@ -15,7 +15,7 @@ fn slot_patch_changes_only_verified_angle_and_preserves_step_streams() {
         let dx=angle.to_radians().cos()*1.5;let dy=-angle.to_radians().sin()*1.5;
         let pad=format!("PAD~ELLIPSE~10~20~6~8~11~~1~0.5~~{rotation}~id~4~{} {} {} {}~Y",10.0-dx,20.0-dy,10.0+dx,20.0+dy);
         let cad=json!({"lcsc":{"number":"C1"},"packageDetail":{"dataStr":{"head":{"x":0,"y":0,"c_para":{"package":"SLOT"}},"shape":[pad]}}});
-        let parsed=parse_footprint(&cad).unwrap();let component=convert_footprint(&parsed);
+        let parsed=parse_footprint(&cad).unwrap();let component=convert_footprint(&parsed).unwrap();
         let mut lib=altium::pcb::Library::default();lib.components.push(component);
         let mut cf=CompoundFile::open(lib.to_bytes().unwrap()).unwrap();
         let step=b"ISO-10303-21;HEADER;ENDSEC;DATA;ENDSEC;END-ISO-10303-21;";

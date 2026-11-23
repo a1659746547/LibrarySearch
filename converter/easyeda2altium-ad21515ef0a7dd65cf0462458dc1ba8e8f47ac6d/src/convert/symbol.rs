@@ -8,7 +8,7 @@ use altium::sch::{
 use crate::easyeda::canvas::snap_to_5px_grid;
 use crate::easyeda::geometry::{path_polylines, single_arc};
 use crate::easyeda::types::{
-    EePinElectrical, EeSymbol, EeSymbolArc, EeSymbolCircle, EeSymbolEllipse, EeSymbolPin,
+    EeSymbol, EeSymbolArc, EeSymbolCircle, EeSymbolEllipse, EeSymbolPin,
     EeSymbolPolyline, EeSymbolRectangle, EeSymbolText,
 };
 
@@ -73,6 +73,14 @@ pub fn convert_symbol(
     }
 
     comp.add_default_labels(&raw_prefix, font_id_for_text);
+    let value = if !ee.info.value.trim().is_empty() { ee.info.value.trim() }
+        else if matches!(raw_prefix.to_ascii_uppercase().as_str(), "R" | "C" | "L") { ee.info.name.as_str() }
+        else if !ee.info.mpn.trim().is_empty() { ee.info.mpn.trim() }
+        else { ee.info.name.as_str() };
+    comp.comment = Some(value.to_owned());
+    for parameter in &mut comp.parameters {
+        if parameter.name.eq_ignore_ascii_case("Comment") { parameter.value = value.to_owned(); }
+    }
 
     for (k, v) in builtin_parameters(ee).iter().chain(custom_fields.iter()) {
         comp.parameters.push(make_parameter(k, v, font_id_for_text));
@@ -265,7 +273,9 @@ fn convert_pin(
         },
         location,
         length,
-        electrical_type: ee_pin_electrical(pin.electrical),
+        // Imported symbols use AD's neutral Passive role. Source roles may
+        // label even both ends of a resistor as inputs.
+        electrical_type: PinElectricalType::Passive,
         formal_type: 1, // AD normal pin, independent of electrical role or appearance.
         orientation,
         show_name: pin.name_visible && !pin.name.is_empty(),
@@ -433,6 +443,8 @@ fn make_implementation(footprint_name: &str) -> Implementation {
     Implementation {
         model_name: Some(footprint_name.to_string()),
         model_type: Some("PCBLIB".to_string()),
+        data_file_kinds: vec!["PCBLib".to_string()],
+        data_file_entities: vec![footprint_name.to_string()],
         is_current: true,
         ..Default::default()
     }
@@ -442,16 +454,6 @@ fn make_implementation(footprint_name: &str) -> Implementation {
 // zero-width display hairlines. Preserve their relative small/medium/large class.
 fn source_stroke_index(width:f64)->i32 {if width.is_finite()&&width>2.0{3}else if width>1.0{2}else{1}}
 fn source_stroke_coord(width:f64)->Coord {Coord::from_mils(match source_stroke_index(width){3=>4.0,2=>2.0,_=>1.0})}
-
-fn ee_pin_electrical(e: EePinElectrical) -> PinElectricalType {
-    match e {
-        EePinElectrical::Input => PinElectricalType::Input,
-        EePinElectrical::Output => PinElectricalType::Output,
-        EePinElectrical::Bidirectional => PinElectricalType::InputOutput,
-        EePinElectrical::Power => PinElectricalType::Power,
-        EePinElectrical::Unspecified => PinElectricalType::Passive,
-    }
-}
 
 fn ee_orientation(rotation_deg: i32) -> PinOrientation {
     match ((rotation_deg % 360 + 360) % 360) / 90 {
@@ -465,6 +467,7 @@ fn ee_orientation(rotation_deg: i32) -> PinOrientation {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::easyeda::types::EePinElectrical;
 
     #[test]
     fn easyeda_pin_directions_point_away_from_symbol_body() {
@@ -494,6 +497,35 @@ mod tests {
         assert_eq!(converted.length, Coord::from_mils(100.0));
         assert!(matches!(converted.orientation, PinOrientation::Left));
         assert_eq!(converted.location.x, ee_px_to_coord(370.0));
+    }
+
+    #[test]
+    fn imported_pins_use_the_passive_role_instead_of_source_direction() {
+        for (i, electrical) in [
+            EePinElectrical::Input,
+            EePinElectrical::Output,
+            EePinElectrical::Bidirectional,
+            EePinElectrical::Power,
+            EePinElectrical::Unspecified,
+        ].into_iter().enumerate() {
+            let source = EeSymbolPin {
+                electrical,
+                designator: (i + 1).to_string(),
+                pos_x: 360.0,
+                pos_y: 270.0,
+                rotation_deg: 180,
+                name: "PIN".to_string(),
+                pin_length: 10.0,
+                is_displayed: true,
+                name_visible: true,
+                number_visible: true,
+                is_inverted: false,
+                is_clock: false,
+            };
+            let pin = convert_pin(&source, 1, 0.0, 0.0, false, 1);
+            assert_eq!(pin.electrical_type, PinElectricalType::Passive);
+            assert_eq!(pin.designator.as_deref(), Some(source.designator.as_str()));
+        }
     }
 
     #[test]
@@ -570,6 +602,11 @@ fn ee_px_to_coord(px: f64) -> Coord {
 
 fn builtin_parameters(ee: &EeSymbol) -> Vec<(String, String)> {
     let mut v = Vec::new();
+    if !ee.info.value.trim().is_empty() {
+        v.push(("Value".to_string(), ee.info.value.trim().to_owned()));
+    } else if matches!(ee.info.prefix.trim_end_matches('?').to_ascii_uppercase().as_str(), "R" | "C" | "L") {
+        v.push(("Value".to_string(), ee.info.name.clone()));
+    }
     if !ee.info.manufacturer.is_empty() {
         v.push(("Manufacturer".to_string(), ee.info.manufacturer.clone()));
     }

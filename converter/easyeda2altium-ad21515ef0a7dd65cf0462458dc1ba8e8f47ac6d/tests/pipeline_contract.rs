@@ -48,7 +48,7 @@ fn source_y_is_reflected_once_for_offset_3d_models() {
     let parsed=parse_footprint(&cad).unwrap();
     let model=parsed.model_3d.as_ref().unwrap();
     assert!((model.translation_y_mm+10.16).abs()<1e-9);
-    let component=convert_footprint(&parsed);let body=&component.component_bodies[0];
+    let component=convert_footprint(&parsed).unwrap();let body=&component.component_bodies[0];
     assert_eq!(body.model_2d_location.x.to_raw(),2_000_000);
     assert_eq!(body.model_2d_location.y.to_raw(),-4_000_000);
     assert_eq!(body.model_3d_dz.to_raw(),3_000_000);
@@ -60,4 +60,53 @@ fn source_y_is_reflected_once_for_offset_3d_models() {
     let read_body=&reopened.components[0].component_bodies[0];
     assert_eq!(read_body.model_2d_location,altium::coord::CoordPoint::mils(200.0,-400.0),"model XY must survive native-library readback");
     assert_eq!(read_body.model_3d_dz,altium::coord::Coord::from_mils(300.0),"model height must survive native-library readback");
+}
+
+#[test]
+fn matching_projection_corrects_only_xy_and_can_preserve_a_nonzero_placement() {
+    use easyeda2altium::convert::model3d::align_xy_to_projection;
+    // Flat B-rep: a 2 x 4 mm projection with local center (3, -1).
+    // The quoted fake entity, 2D trim and stray control point are not vertices.
+    let step = b"ISO-10303-21;HEADER;ENDSEC;DATA;
+        #1=(LENGTH_UNIT() NAMED_UNIT(*) SI_UNIT(.MILLI.,.METRE.));
+        #2=ADVANCED_BREP_SHAPE_REPRESENTATION('contains ;#81=MAPPED_ITEM();',(),#1);
+        #3=CARTESIAN_POINT('',(2.,-3.,0.));
+        #4=CARTESIAN_POINT('',(4.,1.,0.));
+        #5=CARTESIAN_POINT('',(2.,1.,1.));
+        #6=CARTESIAN_POINT('',(9999.,9999.,0.));
+        #7=CARTESIAN_POINT('',(5.,5.));
+        /* #11=MAPPED_ITEM(); */ #8=VERTEX_POINT('',#3);
+        #9=VERTEX_POINT('',#4); #10=VERTEX_POINT('',#5);
+        ENDSEC;END-ISO-10303-21;";
+    let node=json!({
+        "attrs": {"uuid":"1234567890abcdef1234567890abcdef","c_origin":"123,70","z":"10",
+                  "c_rotation":"0,0,90","c_etype":"outline3D","transform":"scale(1) translate(0, 0)"},
+        "childNodes":[{"nodeName":"polyline","attrs":{"points":"96,58 112,58 112,50 96,50 96,58"}}]
+    });
+    let cad=json!({"lcsc":{"number":"C1"},"packageDetail":{"title":"offset","dataStr":{"head":{"x":100,"y":50,"c_para":{"package":"OFFSET"}},"shape":[format!("SVGNODE~{node}")]}}});
+    let mut parsed=parse_footprint(&cad).unwrap();
+    let mut before=parsed.model_3d.take().unwrap();
+    // Use a precisely matching independent projection, centered at (1.5,-1).
+    let svg_projection=before.projection_xy_mm.unwrap();
+    assert_eq!(svg_projection[0],[-1.016,-2.032]);
+    assert_eq!(svg_projection[1],[3.048,0.]);
+    before.projection_xy_mm=Some([[-0.5,-2.],[3.5,0.]]);
+    let mut aligned=before.clone();
+    assert!(align_xy_to_projection(&mut aligned,step));
+    assert!((aligned.translation_x_mm-0.5).abs()<1e-9);
+    assert!((aligned.translation_y_mm+4.0).abs()<1e-9);
+    assert_eq!(aligned.translation_z_mm,before.translation_z_mm);
+    assert_eq!(aligned.rotation_z_deg,90.0);
+    assert!(!align_xy_to_projection(&mut aligned,step));
+    let mut no_outline=before.clone();
+    no_outline.projection_xy_mm=None;
+    assert!(!align_xy_to_projection(&mut no_outline,step));
+    let mut rotated=before.clone();
+    rotated.rotation_x_deg=90.0;
+    assert!(!align_xy_to_projection(&mut rotated,step));
+    let mut wrong_scale=before.clone();
+    wrong_scale.projection_xy_mm=Some([[-0.5,-2.],[6.0,0.]]);
+    assert!(!align_xy_to_projection(&mut wrong_scale,step));
+    let assembly=String::from_utf8_lossy(step).replace("ENDSEC;END-ISO","#50=MAPPED_ITEM('',#2,#2);ENDSEC;END-ISO");
+    assert!(!align_xy_to_projection(&mut before,assembly.as_bytes()));
 }

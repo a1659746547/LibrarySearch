@@ -19,7 +19,7 @@ try{
  $version=$release.Version
  $registration=Join-Path $system 'LibrarySearch.ins'
  if((Test-Path -LiteralPath $registration) -and (Get-Content -Raw -LiteralPath $registration) -notmatch "EditorName\s*=\s*'LibrarySearch'"){throw '同名注册文件属于其他插件，停止覆盖。'}
- $payload=Join-Path $system ('LibrarySearchBeta\'+$version)
+ $payload=Join-Path $system ('LibrarySearchBeta\'+$version+'-'+$release.RuntimeRevision)
  $stateFile=Join-Path $system 'LibrarySearchBeta\install-state.json'
  $previousStateBytes=if(Test-Path -LiteralPath $stateFile){[IO.File]::ReadAllBytes($stateFile)}else{$null}
  $previousState=$null
@@ -34,6 +34,11 @@ try{
  $hostPath=Join-Path $system $hostName;$corePath=Join-Path $system $coreName
  $oldHost=if(Test-Path -LiteralPath $hostPath){[IO.File]::ReadAllBytes($hostPath)}else{$null}
  $oldCore=if(Test-Path -LiteralPath $corePath){[IO.File]::ReadAllBytes($corePath)}else{$null}
+ # A rebuilt release may keep its public version. Reuse rollback state only
+ # when both installed binaries already match this build.
+ if($sameInstall){
+  $sameInstall=$oldCore -and $oldHost -and (Get-FileHash -LiteralPath $corePath).Hash -eq $target.CoreSHA256 -and (Get-FileHash -LiteralPath $hostPath).Hash -eq $target.DllSHA256
+ }
  $backup=Join-Path $system ('LibrarySearchBackups\AD'+$info.AdMajor+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,6))
  New-Item -ItemType Directory -Force -Path $backup | Out-Null
  if($previousRegistration){[IO.File]::WriteAllBytes((Join-Path $backup 'LibrarySearch.ins'),$previousRegistration)}

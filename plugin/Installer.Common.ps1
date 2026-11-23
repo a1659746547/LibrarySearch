@@ -35,6 +35,7 @@ function Get-LibrarySearchRelease {
  }
  $release=Import-PowerShellDataFile -LiteralPath (Join-Path $script:LibrarySearchPackageRoot 'Release.psd1')
  if($release.Version -notmatch '^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$' -or $release.Architecture -ne 'x64'){throw 'Invalid LibrarySearch release metadata'}
+ if($release.RuntimeRevision -cnotmatch '^[a-z0-9]+$'){throw 'Invalid runtime revision'}
  return $release
 }
 function Resolve-LibrarySearchPayloadPath([string]$Relative){

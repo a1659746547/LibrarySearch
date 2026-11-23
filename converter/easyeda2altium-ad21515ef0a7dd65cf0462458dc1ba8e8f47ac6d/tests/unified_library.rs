@@ -1,7 +1,7 @@
 use std::{path::{Path,PathBuf}};
 use altium::{sch,pcb,coord::CoordPoint};
 use easyeda2altium::unified_library::{Input,Request,merge};
-fn folder()->PathBuf{let p=std::env::temp_dir().join(format!("ls-unified-{}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));std::fs::create_dir_all(&p).unwrap();p}
+fn folder()->PathBuf{static NEXT:std::sync::atomic::AtomicU64=std::sync::atomic::AtomicU64::new(0);let p=std::env::temp_dir().join(format!("ls-unified-{}-{}-{}",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),NEXT.fetch_add(1,std::sync::atomic::Ordering::Relaxed)));std::fs::create_dir(&p).unwrap();p}
 fn pair(root:&Path,code:&str,family:&str,step:&str)->Input{
  let mut sch=sch::Library::default();
  for (key,value) in [("FontIdCount","2"),("FontName1","Times New Roman"),("Size1","10"),("FontName2",family),("Size2","8")]{sch.file_header_parameters.insert(key.into(),value.into());}
@@ -17,6 +17,76 @@ fn pair(root:&Path,code:&str,family:&str,step:&str)->Input{
  Input{code:Some(code.into()),symbol_name:Some("SAME_MODEL".into()),symbol_alias:Some(format!("LS_{code}_pair")),footprint_name:Some("SAME_FOOTPRINT".into()),footprint_alias:Some(format!("LS_{code}_footprint")),symbol_path:s.to_string_lossy().into(),footprint_path:p.to_string_lossy().into()}
 }
 fn request(entries:Vec<Input>)->Request{Request{model_namespace:"aabbccddeeff00112233445566778899".into(),entries}}
+
+#[test]
+fn eco_addresses_ordinary_names_directly_and_retains_long_names() {
+    use altium::compound::CompoundFile;
+    let dir = folder();
+    let stem = "P_C53664480_2ebff09e897562eb";
+    let short = format!("{stem}012");
+    let long = format!("{short}A");
+    let names = [long.as_str(), short.as_str(), stem];
+    let entries = names.iter().enumerate().map(|(i,name)| {
+        let mut input = pair(&dir, &format!("C{i}"), "Arial", "model");
+        input.footprint_alias = Some(name.to_string());
+        input
+    }).collect();
+    let output = dir.join("Merged");
+    merge(&request(entries), &output).unwrap();
+    let bytes = std::fs::read(output.with_extension("PcbLib")).unwrap();
+    let mut storage = CompoundFile::open(bytes.clone()).unwrap();
+    for name in [&short[..], stem] {
+        assert!(storage.read_stream(&format!("{name}/Data")).is_ok());
+    }
+    let parsed = pcb::Library::from_bytes(bytes).unwrap();
+    assert_eq!(parsed.components.len(), 3);
+    assert_eq!(parsed.section_keys.len(), 1);
+    assert_ne!(parsed.section_keys[&long], short);
+    assert!(storage.read_stream(&format!("{}/Data", parsed.section_keys[&long])).is_ok());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn upgrading_generated_libraries_reserves_mechanical_one_in_downloads_and_project_history() {
+    use altium::pcb::primitives::{Arc, Fill, Region, Text, Track};
+    for historical in [false, true] {
+        let folder = folder();
+        let entry = pair(&folder, "C99665", "Arial", "STEP-PAYLOAD");
+        let input_path = PathBuf::from(&entry.footprint_path);
+        let mut legacy = pcb::Library::from_bytes(std::fs::read(&input_path).unwrap()).unwrap();
+        let part = &mut legacy.components[0];
+        if historical {
+            let alias = "LS_C99665_1234567890abcdef1234";
+            part.name = alias.into();
+            let sch_path = &entry.symbol_path;
+            let mut symbol = sch::Library::from_bytes(std::fs::read(sch_path).unwrap()).unwrap();
+            symbol.components[0].implementations[0].model_name = Some(alias.into());
+            std::fs::write(sch_path, symbol.to_bytes().unwrap()).unwrap();
+        }
+        part.arcs.push(Arc { layer: 57, ..Default::default() });
+        part.tracks.push(Track { layer: 57, ..Default::default() });
+        part.tracks.push(Track { layer: 33, ..Default::default() });
+        part.regions.push(Region { layer: 57, ..Default::default() });
+        part.fills.push(Fill { layer: 57, ..Default::default() });
+        part.texts.push(Text { layer: 57, text: "old auxiliary text".into(), ..Default::default() });
+        let original = legacy.to_bytes().unwrap();
+        std::fs::write(&input_path, &original).unwrap();
+        let input = if historical { plain(&input_path) } else { entry };
+        let output = folder.join("merged");
+        merge(&request(vec![input]), &output).unwrap();
+        let pcb = pcb::Library::from_bytes(std::fs::read(output.with_extension("PcbLib")).unwrap()).unwrap();
+        let sch = sch::Library::from_bytes(std::fs::read(output.with_extension("SchLib")).unwrap()).unwrap();
+        let part = &pcb.components[0];
+        assert_eq!(part.tracks.iter().map(|p| p.layer).collect::<Vec<_>>(), vec![33]);
+        assert!(part.arcs.is_empty() && part.fills.is_empty() && part.regions.is_empty() && part.texts.is_empty());
+        assert_eq!(part.pads[0].designator.as_deref(), Some("1"));
+        assert_eq!(part.component_bodies[0].layer, easyeda2altium::body_layers::TOP);
+        assert!(pcb.models[0].step_data.contains("STEP-PAYLOAD"));
+        assert_eq!(sch.components[0].implementations[0].model_name.as_deref(), Some(part.name.as_str()));
+        assert_eq!(std::fs::read(input_path).unwrap(), original);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+}
 fn plain(path:&Path)->Input{Input{code:None,symbol_name:None,symbol_alias:None,footprint_name:None,footprint_alias:None,symbol_path:path.with_extension("SchLib").to_string_lossy().into(),footprint_path:path.with_extension("PcbLib").to_string_lossy().into()}}
 #[test]fn duplicate_human_names_keep_distinct_pairs_fonts_pins_and_step_resources(){
  let f=folder();let a=pair(&f,"C1","Arial","FIRST");let b=pair(&f,"C2","Courier New","SECOND");let before=std::fs::read(&a.symbol_path).unwrap();let out=f.join("LibrarySearch");
@@ -24,6 +94,7 @@ fn plain(path:&Path)->Input{Input{code:None,symbol_name:None,symbol_alias:None,f
  let sch=sch::Library::from_bytes(std::fs::read(out.with_extension("SchLib")).unwrap()).unwrap();let pcb=pcb::Library::from_bytes(std::fs::read(out.with_extension("PcbLib")).unwrap()).unwrap();
  for (i,family) in ["Arial","Courier New"].iter().enumerate(){
   let symbol=&sch.components[i];assert_eq!(symbol.implementations[0].model_name.as_deref(),Some(pcb.components[i].name.as_str()));assert!(!symbol.pins[0].show_name);assert!(symbol.pins[0].show_designator);
+  assert_eq!(symbol.implementations[0].data_file_entities,vec![pcb.components[i].name.clone()]);assert_eq!(symbol.implementations[0].data_file_kinds,vec!["PCBLib"]);
   let id=symbol.labels[0].font_id;assert_eq!(sch.file_header_parameters[&format!("FontName{id}")],*family);
   let data=&symbol.additional_streams["PinTextData"];let mut ids=Vec::new();sch::binary::read_compressed_storage(data,|_,body|{ids.push(u16::from_le_bytes([body[1],body[2]]) as i32);Ok(())}).unwrap();assert_eq!(ids,vec![id]);
   let body=&pcb.components[i].component_bodies[0];assert_eq!(body.model_2d_location,CoordPoint::mils(33.0,-38.0));assert_eq!(body.model_3d_rot_z,90.0);

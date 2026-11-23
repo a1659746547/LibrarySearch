@@ -12,10 +12,30 @@ use super::component::{Component, RawRecord};
 use super::document::Document;
 use super::library::Library;
 use super::primitives::Pin;
-use crate::binary::BinaryWriter;
+use crate::binary::BinaryWriter as BlockWriter;
 use crate::compound::CompoundFile;
 use crate::error::Result;
 use crate::parameter::ParameterMap;
+
+struct BinaryWriter<W> {
+    blocks: BlockWriter<W>,
+    record_index: i32,
+}
+
+impl<W: Write + Seek> BinaryWriter<W> {
+    fn new(inner: W) -> Self {
+        Self { blocks: BlockWriter::new(inner), record_index: 0 }
+    }
+}
+
+impl<W> std::ops::Deref for BinaryWriter<W> {
+    type Target = BlockWriter<W>;
+    fn deref(&self) -> &Self::Target { &self.blocks }
+}
+
+impl<W> std::ops::DerefMut for BinaryWriter<W> {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.blocks }
+}
 
 // Library writer
 
@@ -218,6 +238,7 @@ fn write_component_records<W: Write + Seek>(
     component: &Component,
 ) -> Result<()> {
     // RECORD=1 (Component) goes first.
+    let component_index = bw.record_index;
     let mut params = ParameterMap::new();
     params.insert("RECORD", "1");
     codec::component_to_record_params(component, &mut params);
@@ -296,6 +317,7 @@ fn write_component_records<W: Write + Seek>(
             w.write_bytes(&body)?;
             Ok(())
         })?;
+        bw.record_index += 1;
     }
     for sym in &component.symbols {
         let mut p = ParameterMap::new();
@@ -364,25 +386,32 @@ fn write_component_records<W: Write + Seek>(
     // Implementation hierarchy: ImplementationList → Implementation* →
     //   MapDefinerList → MapDefiner* → ImplementationParameters
     if !component.implementations.is_empty() {
+        let list_index = bw.record_index;
         let mut p = ParameterMap::new();
         p.insert("RECORD", "44");
+        p.insert("OWNERINDEX", component_index.to_string());
         emit_param_record(bw, &p)?;
         for impl_ in &component.implementations {
+            let implementation_index = bw.record_index;
             let mut p = ParameterMap::new();
             codec::implementation_to_params(impl_, &mut p);
+            p.insert("OWNERINDEX", list_index.to_string());
+            p.insert("INDEXINSHEET", "-1");
             emit_param_record(bw, &p)?;
-            if !impl_.map_definers.is_empty() {
+            let map_list_index = bw.record_index;
+            let mut p = ParameterMap::new();
+            p.insert("RECORD", "46");
+            p.insert("OWNERINDEX", implementation_index.to_string());
+            emit_param_record(bw, &p)?;
+            for map in &impl_.map_definers {
                 let mut p = ParameterMap::new();
-                p.insert("RECORD", "46");
+                codec::map_definer_to_params(map, &mut p);
+                p.insert("OWNERINDEX", map_list_index.to_string());
                 emit_param_record(bw, &p)?;
-                for map in &impl_.map_definers {
-                    let mut p = ParameterMap::new();
-                    codec::map_definer_to_params(map, &mut p);
-                    emit_param_record(bw, &p)?;
-                }
             }
             let mut p = ParameterMap::new();
             p.insert("RECORD", "48");
+            p.insert("OWNERINDEX", implementation_index.to_string());
             emit_param_record(bw, &p)?;
         }
     }
@@ -405,6 +434,7 @@ fn emit_param_record<W: Write + Seek>(
         w.write_u8(0)?;
         Ok(())
     })
+    .map(|()| { bw.record_index += 1; })
 }
 
 fn emit_raw_record<W: Write + Seek>(bw: &mut BinaryWriter<W>, record: &RawRecord) -> Result<()> {
@@ -412,6 +442,7 @@ fn emit_raw_record<W: Write + Seek>(bw: &mut BinaryWriter<W>, record: &RawRecord
         w.write_bytes(&record.bytes)?;
         Ok(())
     })
+    .map(|()| { bw.record_index += 1; })
 }
 
 // Auxiliary streams
@@ -561,6 +592,7 @@ impl Document {
                 p.insert(k, v.clone());
             }
             emit_param_record(&mut bw, &p)?;
+            bw.record_index = 0;
         }
         if let Some(sheet) = &self.sheet_settings {
             let mut p = ParameterMap::new();

@@ -12,13 +12,39 @@ namespace LibrarySearch {
   readonly Dictionary<string,string> refreshed=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
   static Assembly Sdk {get{return AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a=>a.GetName().Name=="Altium.Dxp.Classes");}}
   internal static bool Available {get{return Sdk!=null;}}
-  internal bool Refresh(ProjectFiles files,Action action=null){
+  internal bool Refresh(ProjectFiles files,Action action=null,string context=null){
    if(files==null||string.IsNullOrEmpty(files.SymbolPath)||string.IsNullOrEmpty(files.FootprintPath)||string.IsNullOrEmpty(files.Revision))throw new IOException("工程总库校验信息不完整，请重新获取元件。");
    string key=Path.GetFullPath(files.SymbolPath)+"|"+Path.GetFullPath(files.FootprintPath),previous;
-   if(refreshed.TryGetValue(key,out previous)&&previous==files.Revision)return false;
+   bool attached=action==null&&!string.IsNullOrEmpty(context)&&AttachProjectLibraries(files,context);
+   if(!attached&&refreshed.TryGetValue(key,out previous)&&previous==files.Revision)return false;
    UserLog.Write("Refresh project libraries begin "+key);
    if(action!=null)action();else Execute();
    refreshed[key]=files.Revision;UserLog.Write("Refresh project libraries returned "+key);return true;
+  }
+  sealed class NativeObject {
+   internal object Value;readonly Type contract;
+   internal NativeObject(object value,Type type){Value=value;contract=type;}
+   internal NativeObject Call(string name,params object[] arguments){
+    if(Value==null)throw new IOException("无法确认 AD 工程库。");
+    var method=contract.GetMethod(name);if(method==null)throw new IOException("当前 AD 缺少工程库接口："+name);
+    return new NativeObject(method.Invoke(Value,arguments),method.ReturnType);
+   }
+  }
+  static bool AttachProjectLibraries(ProjectFiles files,string context){
+   try{
+    var globals=Sdk.GetType("DXP.GlobalVars",true);var getter=globals.GetMethod("get_DXPWorkSpace",BindingFlags.Public|BindingFlags.Static);
+    if(getter==null)throw new IOException("当前 AD 无法确认目标工程。");
+    var parts=context.Split('\n');if(parts.Length!=3)throw new IOException("目标文档信息不完整。");
+    var workspace=new NativeObject(getter.Invoke(null,null),getter.ReturnType);var document=workspace.Call("DM_GetDocumentFromPath",parts[0]);var project=document.Call("DM_Project");
+    if(!string.Equals((string)project.Call("DM_ProjectFullPath").Value,parts[1],StringComparison.OrdinalIgnoreCase))throw new IOException("目标工程已改变，请重新放置。");
+    bool attached=false;
+    foreach(string path in new[]{files.SymbolPath,files.FootprintPath}){
+     bool found=false;int count=Convert.ToInt32(project.Call("DM_LogicalDocumentCount").Value);
+     for(int index=0;index<count;index++){var member=project.Call("DM_LogicalDocuments",index);if(member.Value!=null&&string.Equals((string)member.Call("DM_FullPath").Value,path,StringComparison.OrdinalIgnoreCase)){found=true;break;}}
+     if(!found){project.Call("DM_AddSourceDocument",path);attached=true;UserLog.Write("Project library attached before refresh "+Path.GetFileName(path));}
+    }
+    return attached;
+   }catch(TargetInvocationException error){throw new IOException("无法将配套库加入工程，请重新激活目标工程后重试。",error.InnerException??error);}
   }
   static void Execute(){
    var sdk=Sdk;if(sdk==null)throw new IOException("未找到 AD 库刷新接口。");

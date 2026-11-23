@@ -4,7 +4,7 @@ using System.Reflection;
 using LibrarySearch;
 class CompatiblePayloadTests {
  [STAThread] static int Main(string[] a){try{
-  string root=Path.GetFullPath(a[0]),parent=Path.Combine(root,"System","LibrarySearchBeta"),current=Path.Combine(parent,ReleaseInfo.Version),legacy=Path.Combine(parent,"1.1.0-beta.2");
+  string root=Path.GetFullPath(a[0]),parent=Path.Combine(root,"System","LibrarySearchBeta"),current=Path.Combine(parent,ReleaseInfo.RuntimeFolder),legacy=Path.Combine(parent,"1.1.0-beta.2");
   Directory.CreateDirectory(Path.Combine(current,"online","bin"));Directory.CreateDirectory(legacy);
   File.WriteAllText(Path.Combine(current,"Release.psd1"),ReleaseInfo.Version);File.WriteAllText(Path.Combine(current,"online","bin","easyeda2altium.exe"),"fixture-not-executed");
   var field=typeof(LibraryPanel).GetField("distribution",BindingFlags.Instance|BindingFlags.NonPublic);

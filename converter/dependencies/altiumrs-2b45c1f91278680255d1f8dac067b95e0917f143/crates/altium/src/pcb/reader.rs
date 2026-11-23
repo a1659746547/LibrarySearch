@@ -340,8 +340,7 @@ fn strip_nulls(buf: &[u8]) -> Vec<u8> {
 }
 
 fn section_key_from_name(name: &str) -> String {
-    let trimmed = if name.len() > 31 { &name[..31] } else { name };
-    trimmed.replace('/', "_")
+    super::writer::section_key_from_name(name)
 }
 
 fn read_footprint(

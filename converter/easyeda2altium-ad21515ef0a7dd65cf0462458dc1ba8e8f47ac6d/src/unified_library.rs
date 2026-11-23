@@ -15,6 +15,32 @@ pub struct Request {pub model_namespace:String,pub entries:Vec<Input>}
 pub struct Summary {pub schema_version:u32,pub symbols:usize,pub footprints:usize,pub models:usize}
 
 fn invalid(message:&str)->Error{Error::InvalidArg(message.into())}
+
+fn is_downloaded_alias(name: &str) -> bool {
+    let Some((digits, hash)) = name.strip_prefix("LS_C").and_then(|s| s.split_once('_')) else {
+        return false;
+    };
+    (1..=12).contains(&digits.len()) && digits.bytes().all(|c| c.is_ascii_digit())
+        && hash.len() == 20 && hash.bytes().all(|c| c.is_ascii_hexdigit())
+}
+
+// Older LibrarySearch converters sent auxiliary drawings to Mechanical 1.
+// Apply the current drawing policy to the generated footprint copy, including
+// when the only surviving copy is in an earlier project aggregate.
+fn reserve_board_outline_layer(component: &mut pcb::Component) -> Result<()> {
+    const MECHANICAL_ONE: i32 = 57;
+    if component.pads.iter().any(|pad| pad.layer == MECHANICAL_ONE)
+        || component.vias.iter().any(|via| via.layer == MECHANICAL_ONE)
+    {
+        return Err(invalid(&format!("{} 的旧封装在机械 1 层含焊盘或过孔，请重新获取并核对。", component.name)));
+    }
+    component.tracks.retain(|item| item.layer != MECHANICAL_ONE);
+    component.arcs.retain(|item| item.layer != MECHANICAL_ONE);
+    component.texts.retain(|item| item.layer != MECHANICAL_ONE);
+    component.regions.retain(|item| item.layer != MECHANICAL_ONE);
+    component.fills.retain(|item| item.layer != MECHANICAL_ONE);
+    Ok(())
+}
 fn bytes(path:&str)->Result<Vec<u8>>{
  if std::fs::metadata(path)?.len()>512*1024*1024{return Err(invalid("single input library exceeds 512 MB"));}
  Ok(std::fs::read(path)?)
@@ -120,6 +146,11 @@ pub fn merge(request:&Request,output:&Path)->Result<Summary>{
    }
    if input.code.is_some(){component.name=input.footprint_alias.clone().filter(|s|!s.is_empty()&&s.is_ascii()&&!s.contains(['|','/','\\'])).ok_or_else(||invalid("missing footprint alias"))?;}
    if !footprints.insert(component.name.to_lowercase()){continue;}
+   // A project aggregate can also contain names not issued by this plugin.
+   // Only migrate drawings for an identified download or its versioned alias.
+   if input.code.is_some() || is_downloaded_alias(&component.name) {
+    reserve_board_outline_layer(&mut component)?;
+   }
    for body in &component.component_bodies{if body.model_embed{if let Some(id)=&body.model_id{used_models.insert(id.clone());}}}
    selected.push(component);
   }
@@ -133,12 +164,22 @@ pub fn merge(request:&Request,output:&Path)->Result<Summary>{
   if used_models.iter().any(|id|!model_map.contains_key(id)){return Err(invalid("embedded model resource is missing"));}
   for mut component in selected {
    for body in &mut component.component_bodies{if body.model_embed{if let Some(id)=&body.model_id{body.model_id=Some(model_map[id].clone());}}}
-   pcb.section_keys.insert(component.name.clone(),format!("P{:08}",pcb.components.len()));pcb.components.push(component);
+   // ECO looks up ordinary footprints by their actual compound-storage name.
+   // The writer maps only names which cannot be used directly.
+   pcb.components.push(component);
   }
   for mut component in source_sch.components {
    if input.code.is_some() {
     component.name=input.symbol_alias.clone().filter(|s|!s.is_empty()&&s.is_ascii()&&!s.contains(['|','/','\\'])).ok_or_else(||invalid("missing symbol alias"))?;component.lib_reference=Some(component.name.clone());
     for model in &mut component.implementations {if model.model_type.as_deref()==Some("PCBLIB"){model.model_name=input.footprint_alias.clone();}}
+   }
+   for model in &mut component.implementations {
+    if model.model_type.as_deref()==Some("PCBLIB") {
+     if let Some(name)=&model.model_name {
+      model.data_file_kinds=vec!["PCBLib".into()];
+      model.data_file_entities=vec![name.clone()];
+     }
+    }
    }
    if !symbols.insert(component.name.to_lowercase()){continue;}
    remap_fonts(&mut component,&font_map)?;

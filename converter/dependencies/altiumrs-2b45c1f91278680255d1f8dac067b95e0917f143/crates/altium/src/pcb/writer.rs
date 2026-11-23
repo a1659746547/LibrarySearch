@@ -1,6 +1,6 @@
 //! Writer for `.PcbLib` and `.PcbDoc` files.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Cursor, Seek, Write};
 use std::path::Path;
 
@@ -60,20 +60,43 @@ impl Library {
     }
 }
 
-fn section_key_from_name(name: &str) -> String {
-    let trimmed = if name.len() > 31 { &name[..31] } else { name };
-    trimmed.replace('/', "_")
+pub(super) fn section_key_from_name(name: &str) -> String {
+    storage_prefix(name, 31)
+}
+
+fn storage_prefix(name: &str, capacity: usize) -> String {
+    let mut units = 0;
+    name.chars().take_while(|c| {
+        units += c.len_utf16();
+        units <= capacity
+    }).map(|c| match c { '/' | '\\' | ':' | '!' | '\0' => '_', _ => c }).collect()
 }
 
 fn ensure_section_keys(library: &Library, section_keys: &mut BTreeMap<String, String>) {
+    let mut used: BTreeSet<String> = ["FileHeader", "FileVersionInfo", "Library", "SectionKeys"]
+        .iter().map(|s| s.to_uppercase()).collect();
+    used.extend(section_keys.values().map(|s| s.to_uppercase()));
+    used.extend(library.additional_root_streams.keys().filter_map(|s| s.split('/').next()).map(str::to_uppercase));
+    // Reserve directly addressable names first, regardless of input order.
+    let mut direct = BTreeSet::new();
     for component in &library.components {
-        if section_keys.contains_key(&component.name) {
+        let name = &component.name;
+        if !section_keys.contains_key(name) && !name.is_empty() && section_key_from_name(name) == *name && used.insert(name.to_uppercase()) {
+            direct.insert(name.as_str());
+        }
+    }
+    for component in &library.components {
+        if direct.contains(component.name.as_str()) || section_keys.contains_key(&component.name) {
             continue;
         }
-        let mangled = section_key_from_name(&component.name);
-        if mangled != component.name {
-            section_keys.insert(component.name.clone(), mangled);
+        let mut key = section_key_from_name(&component.name);
+        let mut number = 0;
+        while key.is_empty() || !used.insert(key.to_uppercase()) {
+            number += 1;
+            let suffix = format!("_{number}");
+            key = storage_prefix(&component.name, 31 - suffix.len()) + &suffix;
         }
+        section_keys.insert(component.name.clone(), key);
     }
 }
 

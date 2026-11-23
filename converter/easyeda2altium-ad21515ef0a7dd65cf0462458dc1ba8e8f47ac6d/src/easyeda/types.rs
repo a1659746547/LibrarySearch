@@ -32,6 +32,7 @@ pub struct EeBbox {
 #[derive(Debug, Clone, Default)]
 pub struct EeSymbolInfo {
     pub name: String,
+    pub value: String,
     pub prefix: String,
     pub package: String,
     pub manufacturer: String,
@@ -256,6 +257,8 @@ pub struct Ee3dModel {
     pub rotation_x_deg: f64,
     pub rotation_y_deg: f64,
     pub rotation_z_deg: f64,
+    /// Bounds of the source 3D outline in footprint-local, Y-up millimeters.
+    pub projection_xy_mm: Option<[[f64; 2]; 2]>,
     pub raw_step: Option<Vec<u8>>,
 }
 

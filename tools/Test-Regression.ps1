@@ -6,11 +6,13 @@ $metadata=if($ManagedRuntime -eq 'netfx48'){'build-info.json'}else{'build-info-'
 $coreInfo=Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $build ('shared/'+$metadata))|ConvertFrom-Json
 $core=Join-Path $build $coreInfo.CorePath
 $testNames=@('MultiVersionTests','UpdatesTests','JsonCompatibilityTests','OnlineSearchCacheTests','CustomerFlowTests','CompatiblePayloadTests','PanelLifecycleTests','LocalSearchTests','SourceSwitchTests','ResultScrollBarTests','PanelRenderingTests');$largeFixturePath=$env:LIBRARYSEARCH_LARGE_FIXTURE;if($largeFixturePath){$testNames+='LargeLocalIndexTests'}
-$unifiedFixture=$env:LIBRARYSEARCH_UNIFIED_FIXTURE;if($unifiedFixture){$testNames+='UnifiedLibraryTests'}
+$unifiedFixture=$env:LIBRARYSEARCH_UNIFIED_FIXTURE;if($unifiedFixture){$testNames+='UnifiedLibraryTests';$testNames+='UnifiedRepairTests';$testNames+='UnifiedIsolationTests';$testNames+='UnifiedPathTests'}
 $testNames+='NativeRefreshTests'
+$testNames+='ResultHeaderTests'
+$testNames+='ProjectLibraryBindingTests'
 $testNames+='Default3dTests'
 $recoveryFixture=$env:LIBRARYSEARCH_RECOVERY_FIXTURE;if($recoveryFixture){$testNames+='UnifiedRecoveryTests'}
-if($Headless){$testNames=@($testNames|Where-Object {$_ -in @('MultiVersionTests','UpdatesTests','JsonCompatibilityTests','OnlineSearchCacheTests','CompatiblePayloadTests','Default3dTests','UnifiedRecoveryTests')});Write-Host 'Headless checks only: no forms are shown.'}
+if($Headless){$testNames=@($testNames|Where-Object {$_ -in @('MultiVersionTests','UpdatesTests','JsonCompatibilityTests','OnlineSearchCacheTests','CompatiblePayloadTests','Default3dTests','UnifiedRecoveryTests','UnifiedRepairTests','UnifiedIsolationTests','UnifiedPathTests','ProjectLibraryBindingTests')});Write-Host 'Headless checks only: no forms are shown.'}
 foreach($name in $testNames){
  $source=Join-Path $tests ($name+'.cs');$arguments=@()
  if($name -eq 'JsonCompatibilityTests'){$arguments=@((Join-Path $output 'json'))}
@@ -18,12 +20,13 @@ foreach($name in $testNames){
  if($name -in @('CustomerFlowTests','PanelLifecycleTests','LocalSearchTests','SourceSwitchTests','ResultScrollBarTests','PanelRenderingTests')){$arguments=@((Join-Path $output $name),$build)}
  if($name -eq 'LargeLocalIndexTests'){$arguments=@((Join-Path $output $name),$build,$largeFixturePath)}
  if($name -eq 'UnifiedLibraryTests'){$arguments=@((Join-Path $output $name),$build,$unifiedFixture)}
+ if($name -in @('UnifiedRepairTests','UnifiedIsolationTests','UnifiedPathTests')){$arguments=@((Join-Path $output $name),$build,$unifiedFixture)}
  if($name -eq 'Default3dTests'){$arguments=@((Join-Path $output $name),$build)}
- if($name -eq 'NativeRefreshTests'){
+ if($name -in @('NativeRefreshTests','ProjectLibraryBindingTests')){
   $stubFolder=Join-Path $output 'sdk-stub';New-Item -ItemType Directory -Force -Path $stubFolder|Out-Null;$stub=Join-Path $stubFolder 'Altium.Dxp.Classes.dll'
   & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:library ('/out:'+$stub) (Join-Path $tests 'NativeRefreshSdkStub.cs')
   if($LASTEXITCODE -ne 0){throw 'SDK stub compilation failed'}
-  $arguments=@((Join-Path $output $name),$build,$stub)
+  $arguments=if($name -eq 'ProjectLibraryBindingTests'){@((Join-Path $output $name),$stub)}else{@((Join-Path $output $name),$build,$stub)}
  }
  if($name -eq 'UnifiedRecoveryTests'){$arguments=@((Join-Path $output $name),$build,$recoveryFixture)}
  if($name -eq 'CompatiblePayloadTests'){$arguments=@((Join-Path $output 'compatible-payload'))}

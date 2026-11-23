@@ -1,14 +1,20 @@
-﻿param([Parameter(Mandatory=$true)][string]$BuildDirectory)
+﻿param([Parameter(Mandatory=$true)][string]$BuildDirectory,[string]$OutputDirectory)
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent;$build=[IO.Path]::GetFullPath($BuildDirectory)
 & (Join-Path $PSScriptRoot 'Test-NativeBuild.ps1') -ProjectRoot $root -BinaryDirectory (Join-Path $build 'online/bin')
 $result=Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $build 'matrix-result.json')|ConvertFrom-Json
 $manifest=Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $build 'hosts/targets.json')|ConvertFrom-Json
 if(!$manifest.MatrixCompleted -or @($manifest.Targets).Count -ne @($result.AdMajors).Count){throw 'Only a completed matrix can be packaged'}
-$version=$manifest.PluginVersion;$name='LibrarySearch-'+$version;$dist=Join-Path $root 'dist';$payload=Join-Path $dist $name;$zip=Join-Path $dist ($name+'.zip')
+$version=$manifest.PluginVersion;$name='LibrarySearch-'+$version
+$dist=if($OutputDirectory){[IO.Path]::GetFullPath($OutputDirectory)}else{Join-Path $root 'dist'}
+$payload=Join-Path $dist $name;$zip=Join-Path $dist ($name+'.zip')
 if((Test-Path -LiteralPath $payload) -or (Test-Path -LiteralPath $zip)){throw 'Output already exists; do not overwrite a released package'}
 New-Item -ItemType Directory -Force -Path $payload|Out-Null
-foreach($dir in @('src','licenses','online','docs','hosts','shared','host-source')){if(Test-Path -LiteralPath (Join-Path $build $dir)){Copy-Item -LiteralPath (Join-Path $build $dir) -Destination $payload -Recurse}}
+foreach($dir in @('src','licenses','online','hosts','shared','host-source')){if(Test-Path -LiteralPath (Join-Path $build $dir)){Copy-Item -LiteralPath (Join-Path $build $dir) -Destination $payload -Recurse}}
+# Ship the end-user guide; historical engineering notes stay in source.
+$docs=Join-Path $payload 'docs'
+New-Item -ItemType Directory -Path $docs | Out-Null
+Copy-Item -LiteralPath (Join-Path $build 'docs/使用指南.html') -Destination $docs
 foreach($file in @('Install.cmd','Install.ps1','Installer.Common.ps1','Uninstall.cmd','Uninstall.ps1','Release.psd1','README.md','THIRD-PARTY-NOTICES.md')){Copy-Item -LiteralPath (Join-Path $build $file) -Destination $payload}
 # Install.cmd launches Windows PowerShell 5.1, which treats BOM-less UTF-8 as
 # the system code page. Reject that layout before shipping localized scripts.

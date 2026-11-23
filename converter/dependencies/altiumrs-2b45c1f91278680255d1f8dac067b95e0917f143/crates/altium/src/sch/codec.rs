@@ -1610,8 +1610,8 @@ pub fn implementation_from_params(params: &ParameterMap) -> Implementation {
         model_name: params.get("MODELNAME").map(str::to_owned),
         model_type: params.get("MODELTYPE").map(str::to_owned),
         is_current: params.get_bool("ISCURRENT"),
-        data_file_kinds: collect_indexed(params, "MODELDATAFILEKIND", 1),
-        data_file_entities: collect_indexed(params, "MODELDATAFILEENTITY", 1),
+        data_file_kinds: collect_indexed(params, "MODELDATAFILEKIND", if params.get("MODELDATAFILEKIND0").is_some() { 0 } else { 1 }),
+        data_file_entities: collect_indexed(params, "MODELDATAFILEENTITY", if params.get("MODELDATAFILEENTITY0").is_some() { 0 } else { 1 }),
         map_definers: Vec::new(),
         common: common_record_from_params(params),
     }
@@ -1638,11 +1638,11 @@ pub fn implementation_to_params(impl_: &Implementation, params: &mut ParameterMa
     if max > 0 {
         params.insert("DATAFILECOUNT", max.to_string());
         for (i, kind) in impl_.data_file_kinds.iter().enumerate() {
-            params.insert(format!("MODELDATAFILEKIND{}", i + 1).as_str(), kind.clone());
+            params.insert(format!("MODELDATAFILEKIND{i}").as_str(), kind.clone());
         }
         for (i, ent) in impl_.data_file_entities.iter().enumerate() {
             params.insert(
-                format!("MODELDATAFILEENTITY{}", i + 1).as_str(),
+                format!("MODELDATAFILEENTITY{i}").as_str(),
                 ent.clone(),
             );
         }
